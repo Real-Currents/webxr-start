@@ -8,37 +8,29 @@ export default async function setupScene (scene, camera, controllers, player) {
     // Set player view
     player.add(camera);
 
-    // // Set camera position
-    // camera.position.z = 10;
-    // camera.position.y = 1;
-
-    return function (currentSession, delta, time, updateDOMData) {
+    return function (currentSession, delta, time, sendDataToDOM) {
         if (controllers.hasOwnProperty("right") && controllers.right !== null) {
 
             const { gamepad, raySpace } = controllers.right;
 
-            // Power Ball
             if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
                 console.log("Trigger on right controller was activated:", XR_BUTTONS.TRIGGER, gamepad);
 
-                // raySpace.getWorldPosition(bullet.position);
-                // raySpace.getWorldQuaternion(bullet.quaternion);
-
-                if (typeof updateDOMData === "function") {
-                    updateDOMData({
+                if (typeof sendDataToDOM === "function") {
+                    sendDataToDOM({
                         action: `Trigger on right controller was activated: ${XR_BUTTONS.TRIGGER}`,
                         waiting_for_confirmation: waiting_for_confirmation
                     });
                 }
 
             } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_1)) {
-                console.log("BUTTON_2 (A) on right controller was activated:", XR_BUTTONS.BUTTON_2, gamepad);
+                console.log("BUTTON_1 (A) on right controller was activated:", XR_BUTTONS.BUTTON_1, gamepad);
                 if (!!waiting_for_confirmation) {
                     console.log("Confirm action");
                     waiting_for_confirmation = false;
                     console.log("End session");
-                    if (typeof updateDOMData === "function") {
-                        updateDOMData({
+                    if (typeof sendDataToDOM === "function") {
+                        sendDataToDOM({
                             action: "End session confirmed",
                             waiting_for_confirmation: waiting_for_confirmation
                         });
@@ -52,14 +44,14 @@ export default async function setupScene (scene, camera, controllers, player) {
                 if (!!waiting_for_confirmation) {
                     console.log("Cancel action");
                     waiting_for_confirmation = false;
-                    updateDOMData({
+                    if (typeof sendDataToDOM === "function") sendDataToDOM({
                         action: "End session cancelled",
                         waiting_for_confirmation: waiting_for_confirmation
                     });
                 } else {
                     console.log("Waiting for confirmation...")
                     waiting_for_confirmation = true;
-                    updateDOMData({
+                    if (typeof sendDataToDOM === "function") sendDataToDOM({
                         action: "End session initiated",
                         waiting_for_confirmation: waiting_for_confirmation
                     });
