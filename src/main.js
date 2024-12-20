@@ -153,7 +153,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         renderer.render(scene, camera);
     });
 
-    function startAR() {
+    function startXR() {
         const sessionInit = {
             optionalFeatures: [
                 "local-floor",
@@ -165,9 +165,44 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
                 // "webgpu"
             ]
         };
+        
         navigator.xr
             .requestSession("immersive-ar", sessionInit)
             .then(onSessionStarted);
+
+        const vrDisplays = [];
+
+        if (navigator.getVRDisplays) {
+            function updateDisplay() {
+                // Call `navigator.getVRDisplays` (before Firefox 59).
+                navigator.getVRDisplays().then(displays => {
+                    constole.log("Checking VR display");
+                    if (!displays.length) {
+                        throw new Error('No VR display found');
+                    } else {
+                        for (const display of displays) {
+                            console.log("Found VR Display:", display);
+                            vrDisplays.push(display);
+                            container.innerHTML += `<br />
+<span style="color: greenyellow">VR Display Connected!</span> <br />
+<span style="color: greenyellow">Reload page to reset XR scene.</span>
+`;
+                        }
+                    }
+                });
+            }
+
+            // As of Firefox 59, it's preferred to also wait for the `vrdisplayconnect` event to fire.
+            window.addEventListener('vrdisplayconnect', updateDisplay);
+            window.addEventListener('vrdisplaydisconnect', e => console.log.bind(console));
+            window.addEventListener('vrdisplayactivate', e => console.log.bind(console));
+            window.addEventListener('vrdisplaydeactivate', e => console.log.bind(console));
+            window.addEventListener('vrdisplayblur', e => console.log.bind(console));
+            window.addEventListener('vrdisplayfocus', e => console.log.bind(console));
+            window.addEventListener('vrdisplaypointerrestricted', e => console.log.bind(console));
+            window.addEventListener('vrdisplaypointerunrestricted', e => console.log.bind(console));
+            window.addEventListener('vrdisplaypresentchange', e => console.log.bind(console))
+        }
     }
 
     async function onSessionStarted(session) {
@@ -193,7 +228,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         const delta = clock.getDelta();
         const time = clock.getElapsedTime();
 
-        startAR();
+        startXR();
 
         previewWindow.width = window.innerWidth;
         previewWindow.height = window.innerHeight;
@@ -216,38 +251,6 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
         container.style = `display: block; color: #FFF; font-size: 24px; text-align: center; background-color: #000; height: 100vh; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
         container.innerHTML = "Reload page";
-
-        const vrDisplays = [];
-
-        if (navigator.getVRDisplays) {
-            function updateDisplay() {
-                // Call `navigator.getVRDisplays` (before Firefox 59).
-                navigator.getVRDisplays().then(displays => {
-                    constole.log("Checking VR display");
-                    if (!displays.length) {
-                        throw new Error('No VR display found');
-                    } else {
-                        for (const display of displays) vrDisplays.push(display);
-                        console.log("VR displays:", vrDisplays);
-                        container.innerHTML = `<br />
-VR Display Connected!<br />
-Reload page to reset VR scene.
-`
-                    }
-                });
-            }
-
-            // As of Firefox 59, it's preferred to also wait for the `vrdisplayconnect` event to fire.
-            window.addEventListener('vrdisplayconnect', updateDisplay);
-            window.addEventListener('vrdisplaydisconnect', e => console.log.bind(console));
-            window.addEventListener('vrdisplayactivate', e => console.log.bind(console));
-            window.addEventListener('vrdisplaydeactivate', e => console.log.bind(console));
-            window.addEventListener('vrdisplayblur', e => console.log.bind(console));
-            window.addEventListener('vrdisplayfocus', e => console.log.bind(console));
-            window.addEventListener('vrdisplaypointerrestricted', e => console.log.bind(console));
-            window.addEventListener('vrdisplaypointerunrestricted', e => console.log.bind(console));
-            window.addEventListener('vrdisplaypresentchange', e => console.log.bind(console))
-        }
     });
 
     container.appendChild(xr_button);
