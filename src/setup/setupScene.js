@@ -1,5 +1,5 @@
-import * as THREE from "three";
 import { XR_BUTTONS } from "gamepad-wrapper";
+import plane from "../objects/plane";
 
 let waiting_for_confirmation = false;
 
@@ -8,9 +8,16 @@ export default async function setupScene (scene, camera, controllers, player) {
     // Set player view
     player.add(camera);
 
-    // // Set camera position
-    // camera.position.z = 10;
-    // camera.position.y = 1;
+    // Place objects
+    scene.add(plane);
+
+    if (controllers.hasOwnProperty("right") && controllers.right !== null) {
+
+        const { gamepad, raySpace } = controllers.right;
+
+        raySpace.getWorldPosition(plane.position);
+        raySpace.getWorldQuaternion(plane.quaternion);
+    }
 
     return function (currentSession, delta, time, updateDOMData) {
         if (controllers.hasOwnProperty("right") && controllers.right !== null) {

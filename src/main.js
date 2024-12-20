@@ -11,8 +11,8 @@ import setupScene from "./setup/setupScene";
 
 let currentSession;
 
+const clock = new THREE.Clock();
 const scene = new THREE.Scene();
-
 const controllerModelFactory = new XRControllerModelFactory();
 const controllers = {
     left: null,
@@ -138,9 +138,6 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         // gripSpace.visible = false;
     }
 
-
-    const clock = new THREE.Clock();
-
     const updateScene = await setup(scene, camera, controllers, player);
 
     renderer.setAnimationLoop(() => {
@@ -193,6 +190,9 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
         console.log("XR Button clicked");
 
+        const delta = clock.getDelta();
+        const time = clock.getElapsedTime();
+
         startAR();
 
         previewWindow.width = window.innerWidth;
@@ -203,8 +203,14 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         camera.aspect = previewWindow.width / previewWindow.height;
         camera.updateProjectionMatrix();
 
+        // Set camera position
+        // camera.position.z = 0;
+        camera.position.y = 0;
+
         player.position.z = camera.position.z;
         player.position.y = camera.position.y;
+
+        updateScene(currentSession, delta, time);
 
         renderer.render(scene, camera);
 
