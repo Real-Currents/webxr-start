@@ -1,9 +1,7 @@
 import * as THREE from "three";
+import loadManager from "../loadManager";
 
-const loadManager = new THREE.LoadingManager();
 const textureLoader = new THREE.TextureLoader(loadManager);
-const texture = textureLoader.load( 'material/textures/wall.jpg' );
-texture.colorSpace = THREE.SRGBColorSpace
 
 function loadColorTexture (path) {
     const texture = textureLoader.load( path );
@@ -28,11 +26,11 @@ const meshMaterials = [
 ];
 
 export default new Promise((resolve, reject) => {
-    loadManager.onLoad = () => {
+    loadManager.addLoadHandler(() => {
         setTimeout(
             resolve,
             1000,
             meshMaterials
         );
-    };
+    });
 });

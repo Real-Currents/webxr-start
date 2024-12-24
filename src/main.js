@@ -7,6 +7,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
 
+import loadManager from "./loadManager";
 import setupScene from "./setup/setupScene";
 
 let currentSession;
@@ -253,7 +254,9 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         container.innerHTML = "Reload page";
     });
 
-    container.appendChild(xr_button);
+    loadManager.addLoadHandler(() => {
+        container.appendChild(xr_button);
+    });
 
 }
 
