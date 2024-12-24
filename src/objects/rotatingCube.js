@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import cubeGeometry from "../geometry/cubeGeometry";
-import meshMaterial from "../material/meshMaterial";
+import meshMaterials from "../material/meshMaterials";
 
-const rotatingCube = new THREE.Mesh(cubeGeometry, meshMaterial);
+const rotatingCube = new THREE.Mesh(cubeGeometry, meshMaterials);
 
 rotatingCube.position.y = 2;
 
