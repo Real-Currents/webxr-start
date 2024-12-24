@@ -1,16 +1,21 @@
 import * as THREE from "three";
 
 
+const loadManager = new THREE.LoadingManager();
+
 // <div id="loading">
 //     <div class="progress"><div class="progressbar"></div></div>
 // </div>
-
-const loadManager = new THREE.LoadingManager();
 const loadingElem = document.createElement("div");
 loadingElem.id = "loading";
+const progressElem = document.createElement("div");
+progressElem.className = "progress";
+loadingElem.append(progressElem);
 const progressBarElem = document.createElement("div");
 progressBarElem.className = "progressbar";
-loadingElem.append(progressBarElem);
+progressElem.append(progressBarElem);
+
+loadManager.div = loadingElem;
 
 loadManager.handlers = [
     () => {
@@ -25,7 +30,7 @@ loadManager.handlers = [
             }
         };
 
-        // fadeProgressBar();
+        fadeProgressBar();
     },
 ];
 

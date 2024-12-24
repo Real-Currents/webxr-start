@@ -254,6 +254,8 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         container.innerHTML = "Reload page";
     });
 
+    container.append(loadManager.div);
+
     loadManager.addLoadHandler(() => {
         container.appendChild(xr_button);
     });
