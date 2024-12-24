@@ -2,7 +2,7 @@ import { XR_BUTTONS } from "gamepad-wrapper";
 import plane from "../objects/plane";
 import rotatingCube from "../objects/rotatingCube";
 
-let waiting_for_confirmation = false;
+let waiting_for_confirmation = false;;
 
 export default async function setupScene (scene, camera, controllers, player) {
 
