@@ -34,12 +34,12 @@ loadManager.handlers = [
     },
 ];
 
-loadManager.addLoadHandler = (handler) => {
+loadManager.addLoadHandler = async (handler) => {
     loadManager.handlers.push(handler);
 };
 
 loadManager.onLoad = () => {
-    loadManager.handlers.map((h) => (typeof h === "function") ? h() : (() => {})());
+    loadManager.handlers.map(async (h) => (typeof h === "function") ? await h() : (() => {})());
 };
 
 loadManager.onProgress = (urlOfLastItemLoaded, itemsLoaded, itemsTotal) => {
