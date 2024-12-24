@@ -34,7 +34,7 @@ loadManager.handlers = [
     },
 ];
 
-loadManager.addLoadHandler = async (handler) => {
+loadManager.addLoadHandler = (handler) => {
     loadManager.handlers.push(handler);
 };
 

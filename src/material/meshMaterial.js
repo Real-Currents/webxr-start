@@ -55,9 +55,17 @@ textureLoader.load('material/textures/mipmap-256.png', (t0) => {
 
                             console.log("Load mipmap[6]");
 
-                            texture.mipmaps[0] = texture.image;
+                            if (!!texture.image) {
+                                console.log(texture.image);
+                                /* !THIS DOM CALLBACK DOES NOT WORK/RUN...! */
+                                // texture.image.onload = () => {
+                                //     texture_loaded = true;
+                                // }
+                                texture.mipmaps[0] = texture.image;
+                            } else {
+                                texture.mipmaps[ 0 ] = t0.image;
+                            }
 
-                            // texture.mipmaps[ 0 ] = t0.image;
                             texture.mipmaps[ 1 ] = t1.image;
                             texture.mipmaps[ 2 ] = t2.image;
                             texture.mipmaps[ 3 ] = t3.image;
@@ -86,7 +94,7 @@ loadManager.addLoadHandler(() => {
     texture.minFilter = THREE.LinearMipmapLinearFilter;
 
     if (!texture_loaded) {
-        console.log("meshMaterial mipmaps have not been assigned!");
+        console.log("meshMaterial mipmaps have not been initialized!");
 
         texture.mipmaps[0] = canvasBitmap.getImageData(0, 0, 256, 256); // .canvas;
         texture.mipmaps[1] = mipmap(128, '#0f0').getImageData(0, 0, 128, 128); // .canvas;
