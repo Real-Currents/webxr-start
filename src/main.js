@@ -10,6 +10,7 @@ import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFa
 import loadManager from "./loadManager";
 import setupScene from "./setup/setupScene";
 
+
 let currentSession;
 
 const clock = new THREE.Clock();
