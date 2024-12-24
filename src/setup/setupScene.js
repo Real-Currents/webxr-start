@@ -1,5 +1,6 @@
 import { XR_BUTTONS } from "gamepad-wrapper";
 import plane from "../objects/plane";
+import rotatingCube from "../objects/rotatingCube";
 
 let waiting_for_confirmation = false;
 
@@ -10,6 +11,7 @@ export default async function setupScene (scene, camera, controllers, player) {
 
     // Place objects
     scene.add(plane);
+    scene.add(rotatingCube);
 
     if (controllers.hasOwnProperty("right") && controllers.right !== null) {
 
@@ -20,6 +22,10 @@ export default async function setupScene (scene, camera, controllers, player) {
     }
 
     return function (currentSession, delta, time, sendDataToDOM) {
+
+        rotatingCube.rotX(0.01);
+        rotatingCube.rotY(0.01);
+
         if (controllers.hasOwnProperty("right") && controllers.right !== null) {
 
             const { gamepad, raySpace } = controllers.right;
