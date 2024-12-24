@@ -1,11 +1,14 @@
 import * as THREE from "three";
 
-const textureLoader = new THREE.TextureLoader();
+const loadManager = new THREE.LoadingManager();
+const textureLoader = new THREE.TextureLoader(loadManager);
+const texture = textureLoader.load( 'material/textures/wall.jpg' );
+texture.colorSpace = THREE.SRGBColorSpace
 
 function loadColorTexture (path) {
     const texture = textureLoader.load( path );
     texture.colorSpace = THREE.SRGBColorSpace;
-    return {
+    return { // new MeshStandardNodeMaterial({
         // color: 0x00FF00,
         map: texture,
         opacity: 1.0,
@@ -24,5 +27,12 @@ const meshMaterials = [
     new THREE.MeshBasicMaterial(loadColorTexture('material/textures/flower-6.jpg')),
 ];
 
-export default meshMaterials;
-
+export default new Promise((resolve, reject) => {
+    loadManager.onLoad = () => {
+        setTimeout(
+            resolve,
+            1000,
+            meshMaterials
+        );
+    };
+});

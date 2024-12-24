@@ -4,7 +4,7 @@ const textureLoader = new THREE.TextureLoader();
 const texture = textureLoader.load( 'material/textures/wall.jpg' );
 texture.colorSpace = THREE.SRGBColorSpace;
 
-const meshMaterial = new THREE.MeshBasicMaterial({ // new MeshStandardNodeMaterial({
+const meshMaterial = new THREE.MeshBasicMaterial({
     // color: 0x00FF00,
     map: texture,
     opacity: 1.0,

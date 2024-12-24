@@ -1,8 +1,18 @@
 import * as THREE from 'three';
 import cubeGeometry from "../geometry/cubeGeometry";
-import meshMaterials from "../material/meshMaterials";
+import meshMaterial from "../material/meshMaterial";
+// import meshMaterials from "../material/meshMaterials";
+import meshMaterialsPromise from "../material/meshMaterialsPromise";
 
-const rotatingCube = new THREE.Mesh(cubeGeometry, meshMaterials);
+const rotatingCube = new THREE.Mesh(cubeGeometry, meshMaterial);
+
+// rotatingCube.material = meshMaterials;
+meshMaterialsPromise
+    .then((materials) => {
+        console.log(materials);
+        rotatingCube.material = materials;
+    });
+
 
 rotatingCube.position.y = 2;
 
