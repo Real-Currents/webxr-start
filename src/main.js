@@ -75,6 +75,7 @@ async function initScene (canvas, setup = (scene, camera, controllers, players) 
     renderer.resetState();
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(previewWindow.width, previewWindow.height);
+    renderer.autoClear = false;
     renderer.xr.enabled = true;
     container.appendChild(renderer.domElement);
 
@@ -82,7 +83,7 @@ async function initScene (canvas, setup = (scene, camera, controllers, players) 
         35,
         previewWindow.width / previewWindow.height,
         1,
-        1000,
+        3000,
     );
     camera.position.set(0, 1.6, 3);
 
@@ -107,8 +108,8 @@ async function initScene (canvas, setup = (scene, camera, controllers, players) 
     window.addEventListener('resize', onWindowResize);
 
     const environment = new RoomEnvironment(renderer);
-    const pmremGenerator = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmremGenerator.fromScene(environment).texture;
+    // const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    // scene.environment = pmremGenerator.fromScene(environment).texture;
 
     const player = new THREE.Group();
     scene.add(player);
@@ -317,7 +318,7 @@ async function initScene (canvas, setup = (scene, camera, controllers, players) 
 
                 // renderer.render(scene, camera);
                 renderer.clear();
-                composer.render( 0.01 );
+                composer.render( delta );
             });
 
             container.appendChild(xr_button);

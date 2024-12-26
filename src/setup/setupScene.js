@@ -7,21 +7,17 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import plane from "../objects/plane";
 // import rotatingCube from "../objects/rotatingCube";
 import rotatingTorus from "../objects/rotatingTorus";
+import loadManager from "../loadManager";
 
-const rotatingMesh = rotatingTorus; // rotatingCube;
+const rotatingMesh = rotatingTorus; // rotatingMesh;
 let uniforms, mesh;
 
 export default async function setupScene (scene, camera, composer, controllers, player) {
 
     // Set player view
     player.add(camera);
-
-    // Place objects
-    scene.add(plane);
-    scene.add(rotatingMesh);
-
     // Based on https://github.com/mrdoob/three.js/blob/master/examples/webgl_shader_lava.html
-    const textureLoader = new THREE.TextureLoader();
+    const textureLoader = new THREE.TextureLoader(loadManager);
 
     const cloudTexture = textureLoader.load( 'material/textures/lava/cloud.png' );
     const lavaTexture = textureLoader.load( 'material/textures/lava/lavatile.jpg' );
@@ -32,27 +28,27 @@ export default async function setupScene (scene, camera, composer, controllers, 
     lavaTexture.wrapS = lavaTexture.wrapT = THREE.RepeatWrapping;
 
     uniforms = {
-
         'fogDensity': { value: 0.45 },
         'fogColor': { value: new THREE.Vector3( 0, 0, 0 ) },
         'time': { value: 1.0 },
         'uvScale': { value: new THREE.Vector2( 3.0, 1.0 ) },
         'texture1': { value: cloudTexture },
         'texture2': { value: lavaTexture }
-
     };
 
-    const size = 0.65;
-    // rotatingCube.geometry = new THREE.TorusGeometry( size, 0.3, 30, 30 );
-    // rotatingCube.material = new THREE.ShaderMaterial({
-    //     uniforms: uniforms,
-    //     vertexShader: document.getElementById( 'vertexShader' ).textContent,
-    //     fragmentShader: document.getElementById( 'fragmentShader' ).textContent
-    // });
+    rotatingMesh.material = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: document.getElementById( 'vertexShader' ).textContent,
+        fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+    });
 
-    composer.addPass( new RenderPass( scene, camera ) );
-    composer.addPass(new BloomPass( 1.25 )); // <= blurry?
-    composer.addPass(new OutputPass());
+    // Place objects
+    scene.add(plane);
+    scene.add(rotatingMesh);
+
+    composer.addPass(new RenderPass( scene, camera ));
+    // composer.addPass(new BloomPass( 1.25 )); // <= blurry?
+    // composer.addPass(new OutputPass());
 
     // Get rayspace from controller object and update position relative to plane (floor)
     if (controllers.hasOwnProperty("right") && controllers.right !== null) {
@@ -70,8 +66,8 @@ export default async function setupScene (scene, camera, composer, controllers, 
         // mesh.rotation.y += 0.0125 * (5 * delta);
         // mesh.rotation.x += 0.05 * (5 * delta);
 
-        rotatingMesh.rotX(0.01);
-        rotatingMesh.rotY(0.01);
+        rotatingMesh.rotX(0.0125 * (5 * delta));
+        rotatingMesh.rotY(0.05 * (5 * delta));
 
         if (typeof sceneDataUpdate === "object" && sceneDataUpdate != null) {
             console.log("sceneDataUpdate:", sceneDataUpdate);
