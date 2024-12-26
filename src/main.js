@@ -6,6 +6,7 @@ import { GamepadWrapper, XR_BUTTONS } from 'gamepad-wrapper';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 
 import loadManager from "./loadManager";
 import setupScene from "./setup/setupScene";
@@ -23,7 +24,7 @@ const controllers = {
 
 let waiting_for_confirmation = false;
 
-async function initScene (setup = (scene, camera, controllers, players) => {}) {
+async function initScene (canvas, setup = (scene, camera, controllers, players) => {}) {
 
     // iwer setup
     let nativeWebXRSupport = false;
@@ -70,8 +71,6 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
     console.log(container);
 
-    const canvas= window.document.createElement('canvas');
-
     const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.resetState();
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -80,12 +79,14 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     container.appendChild(renderer.domElement);
 
     const camera = new THREE.PerspectiveCamera(
-        50,
+        35,
         previewWindow.width / previewWindow.height,
-        0.1,
+        1,
         1000,
     );
     camera.position.set(0, 1.6, 3);
+
+    const composer = new EffectComposer( renderer );
 
     const controls = new OrbitControls(camera, container);
     controls.target.set(0, 1.6, 0);
@@ -100,6 +101,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         camera.updateProjectionMatrix();
 
         renderer.setSize(previewWindow.width, previewWindow.height);
+        composer.setSize(previewWindow.width, previewWindow.height);
     }
 
     window.addEventListener('resize', onWindowResize);
@@ -142,8 +144,6 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         // raySpace.visible = false;
         // gripSpace.visible = false;
     }
-
-
 
     function startXR() {
         const sessionInit = {
@@ -208,6 +208,8 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         currentSession = null;
     }
 
+    const updateScene = await setup(scene, camera, composer, controllers, player);
+
     const xr_button = // VRButton.createButton(renderer);
         document.createElement("button");
     // xr_button.className = "vr-button";
@@ -246,8 +248,6 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     });
 
     container.append(loadManager.div);
-
-    const updateScene = await setup(scene, camera, controllers, player);
 
     await loadManager.addLoadHandler(async () => {
 
@@ -315,7 +315,9 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
                 updateScene(currentSession, delta, time, (Object.keys(sceneDataUpdate).length > 0) ? sceneDataUpdate : null);
 
-                renderer.render(scene, camera);
+                // renderer.render(scene, camera);
+                renderer.clear();
+                composer.render( 0.01 );
             });
 
             container.appendChild(xr_button);
@@ -323,10 +325,10 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         // }, 5333);
     });
 
+    return renderer;
 }
 
-initScene(setupScene)
-    .then(() => {
-        console.log("WebXR has been initialized");
+initScene(window.document.createElement('canvas'), setupScene)
+    .then((renderer) => {
+        console.log("WebXR has been initialized", renderer);
     });
-
