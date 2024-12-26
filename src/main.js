@@ -73,6 +73,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     const canvas= window.document.createElement('canvas');
 
     const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    renderer.resetState();
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(previewWindow.width, previewWindow.height);
     renderer.xr.enabled = true;
