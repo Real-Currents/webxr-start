@@ -1,8 +1,24 @@
+import * as THREE from "three";
+
 import plane from "../objects/plane";
 import rotatingCube from "../objects/rotatingCube";
 
+let uniforms;
 
 export default async function setupScene (scene, camera, controllers, player) {
+
+    uniforms = {
+        time: { value: 1.0 }
+    }
+
+    const material = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: document.getElementById( 'vertexShader' ).textContent,
+        fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+
+    });
+
+    plane.material = material;
 
     // Set player view
     player.add(camera);
@@ -21,6 +37,8 @@ export default async function setupScene (scene, camera, controllers, player) {
     }
 
     return function (currentSession, delta, time, sceneDataUpdate, sendDOMDataUpdate) {
+
+        uniforms[ 'time' ].value = performance.now() / 1000;
 
         rotatingCube.rotX(0.01);
         rotatingCube.rotY(0.01);
