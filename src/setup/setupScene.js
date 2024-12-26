@@ -47,8 +47,8 @@ export default async function setupScene (scene, camera, composer, controllers, 
     scene.add(rotatingMesh);
 
     composer.addPass(new RenderPass( scene, camera ));
-    // composer.addPass(new BloomPass( 1.25 )); // <= blurry?
-    // composer.addPass(new OutputPass());
+    composer.addPass(new BloomPass( 1.25 )); // <= blurry?
+    composer.addPass(new OutputPass());
 
     // Get rayspace from controller object and update position relative to plane (floor)
     if (controllers.hasOwnProperty("right") && controllers.right !== null) {
