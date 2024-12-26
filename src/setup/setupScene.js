@@ -2,7 +2,7 @@ import plane from "../objects/plane";
 import rotatingCube from "../objects/rotatingCube";
 
 
-export default async function setupScene (scene, camera, controllers, player) {
+export default async function setupScene (scene, camera, composer, controllers, player) {
 
     // Set player view
     player.add(camera);
