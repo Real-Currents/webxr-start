@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import Stats from "https://unpkg.com/three@0.118.3/examples/jsm/libs/stats.module.js";
 
 import { XRDevice, metaQuest3 } from 'iwer';
 import { DevUI } from '@iwer/devui';
@@ -11,9 +12,6 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import loadManager from "./loadManager";
 import setupScene from "./setup/setupScene";
 
-
-let currentSession;
-
 const clock = new THREE.Clock();
 const scene = new THREE.Scene();
 const controllerModelFactory = new XRControllerModelFactory();
@@ -21,6 +19,8 @@ const controllers = {
     left: null,
     right: null,
 };
+
+let currentSession;
 
 let waiting_for_confirmation = false;
 
@@ -331,7 +331,16 @@ async function initScene (canvas, setup = (renderer, scene, camera, controllers,
     return renderer;
 }
 
+function initStats() {
+    const stats = new Stats();
+    stats.showPanel(0);
+    document.body.appendChild(stats.dom);
+    return stats;
+}
+
 initScene(window.document.createElement('canvas'), setupScene)
     .then((renderer) => {
         console.log("WebXR has been initialized", renderer);
     });
+
+initStats()
