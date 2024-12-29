@@ -49,8 +49,38 @@
 				transform: scaleX(0);
 			}
 		</style>
+		<!-- Basic intro to shaders from:
+		  -- https://webglfundamentals.org/webgl/lessons/webgl-how-it-works.html
+		  -->
+		<!-- vertex shader -->
+		<script  id="vertexShader" type="x-shader/x-vertex">
+			varying vec4 v_color;
+
+			void main() {
+
+			  vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+			  gl_Position = projectionMatrix * mvPosition;
+
+			  // Convert from clipspace to colorspace.
+			  // Clipspace goes -1.0 to +1.0
+			  // Colorspace goes from 0.0 to 1.0
+			  v_color = gl_Position * 0.5 + 0.5;
+			}
+		</script>
+		<!-- fragment shader -->
+		<script  id="fragmentShader" type="x-shader/x-fragment">
+
+			varying vec4 v_color;
+
+			void main() {
+			  // gl_FragColor = vec4(1, 0, 0, 1);
+			  // gl_FragColor = vec4(vNormal * 0.5 + 0.5, 1);
+			  gl_FragColor = v_color;
+			}
+		</script>
+		<script src="https://webglfundamentals.org/webgl/resources/m3.js"></script>
 	</head>
 	<body>
-		<script type="module" src="src//main.js"></script>
+		<script type="module" src="src/main.js"></script>
 	</body>
 </html>

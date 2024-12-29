@@ -24,7 +24,7 @@ const controllers = {
 
 let waiting_for_confirmation = false;
 
-async function initScene (canvas, setup = (scene, camera, controllers, players) => {}) {
+async function initScene (canvas, setup = (renderer, scene, camera, controllers, players) => {}) {
 
     // iwer setup
     let nativeWebXRSupport = false;
@@ -209,7 +209,7 @@ async function initScene (canvas, setup = (scene, camera, controllers, players) 
         currentSession = null;
     }
 
-    const updateScene = await setup(scene, camera, composer, controllers, player);
+    const updateScene = await setup(renderer, scene, camera, composer, controllers, player);
 
     const xr_button = // VRButton.createButton(renderer);
         document.createElement("button");
