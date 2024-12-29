@@ -49,6 +49,14 @@
 				transform: scaleX(0);
 			}
 		</style>
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "../build/three.module.js",
+					"three/addons/": "./jsm/"
+				}
+			}
+		</script>
 		<!-- Basic intro to shaders from:
 		  -- https://webglfundamentals.org/webgl/lessons/webgl-how-it-works.html
 		  -->
@@ -76,14 +84,6 @@
 			  // gl_FragColor = vec4(1, 0, 0, 1);
 			  // gl_FragColor = vec4(vNormal * 0.5 + 0.5, 1);
 			  gl_FragColor = v_color;
-			}
-		</script>
-		<script type="importmap">
-			{
-				"imports": {
-					"three": "../build/three.module.js",
-					"three/addons/": "./jsm/"
-				}
 			}
 		</script>
 	</head>

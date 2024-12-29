@@ -76,10 +76,10 @@ export default async function setupScene (renderer, scene, camera, composer, con
     water.rotation.x = - Math.PI / 2;
     water.scale.x = water.scale.x; // / textureRepeatScale;
     water.scale.y = water.scale.y; // / textureRepeatScale;
-    water.position.z = -1;
+    water.position.y = -1;
 
     // Place objects
-    // scene.add(plane);
+    scene.add(plane);
     scene.add(sky);
     scene.add(water);
     scene.add(rotatingCube);
