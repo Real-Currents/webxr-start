@@ -76,6 +76,8 @@ async function initScene (canvas, setup = (renderer, scene, camera, controllers,
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(previewWindow.width, previewWindow.height);
     renderer.autoClear = false;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.5;
     renderer.xr.enabled = true;
     container.appendChild(renderer.domElement);
 

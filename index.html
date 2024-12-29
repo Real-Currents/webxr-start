@@ -78,7 +78,14 @@
 			  gl_FragColor = v_color;
 			}
 		</script>
-		<script src="https://webglfundamentals.org/webgl/resources/m3.js"></script>
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "../build/three.module.js",
+					"three/addons/": "./jsm/"
+				}
+			}
+		</script>
 	</head>
 	<body>
 		<script type="module" src="src/main.js"></script>
