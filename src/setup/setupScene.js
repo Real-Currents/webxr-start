@@ -8,11 +8,205 @@ import planeGeometry from "../geometry/planeGeometry";
 import rotatingCube from "../objects/rotatingCube";
 import rotatingTorus from "../objects/rotatingTorus";
 
+import defaultVertexShader from '../shaders/default/vertexShader.glsl';
+import defaultFragmentShader from '../shaders/default/fragmentShader.glsl';
+
+import webglHowItWorksVertexShader from '../shaders/webgl-how-it-works/vertexShader.glsl';
+import webglHowItWorksFragmentShader from '../shaders/webgl-how-it-works/fragmentShader.glsl';
+
 const rotatingMesh = rotatingTorus;
 let uniforms, sun, water;
 
 const SIZE = 4;
 const RESOLUTION = 512;
+
+export default function setupScene (renderer, scene, camera, composer, controllers, player) {
+
+    // Set player view
+    player.add(camera);
+
+    // // Get A WebGL context
+    // const gl = renderer.getContext();
+
+    sun = new THREE.Vector3();
+
+    // Skybox
+
+    const sky = new Sky();
+    sky.scale.setScalar( 10000 );
+
+    const skyUniforms = sky.material.uniforms;
+
+    skyUniforms[ 'turbidity' ].value = 10;
+    skyUniforms[ 'rayleigh' ].value = 2;
+    skyUniforms[ 'mieCoefficient' ].value = 0.005;
+    skyUniforms[ 'mieDirectionalG' ].value = 0.8;
+
+    const parameters = {
+        elevation: 2,
+        azimuth: 180
+    };
+
+    rotatingMesh.material = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: // document.getElementById( 'vertexShader' ).textContent,
+            defaultVertexShader,
+        fragmentShader: // document.getElementById( 'fragmentShader' ).textContent,
+            defaultFragmentShader,
+    });
+
+    const textureRepeatScale = 100;
+    water = new Water(
+        new THREE.PlaneGeometry( 10000, 10000 ),
+        {
+            distortionScale: 1 / textureRepeatScale,
+            fog: scene.fog !== undefined,
+            textureWidth: 512,
+            textureHeight: 512,
+            waterNormals: new THREE.TextureLoader(loadManager).load( 'material/textures/waternormals.jpg', function ( texture ) {
+                texture.repeat.set(textureRepeatScale, textureRepeatScale);
+                // texture.repeat.x = textureRepeatScale;
+                // texture.repeat.y = textureRepeatScale;
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+            } ),
+            sunDirection: new THREE.Vector3(),
+            sunColor: 0xffffff,
+            waterColor: 0x001e0f
+        }
+    );
+
+    water.rotation.x = - Math.PI / 2;
+    water.scale.x = water.scale.x; // / textureRepeatScale;
+    water.scale.y = water.scale.y; // / textureRepeatScale;
+    water.position.y = -textureRepeatScale/2;
+
+    // console.log(THREE.ShaderChunk.meshphysical_vert);
+    // console.log(THREE.ShaderChunk.meshphysical_frag);
+
+    uniforms = {
+        ...THREE.ShaderLib.physical.uniforms,
+        // diffuse: { value: "#5B82A6" }, // <= DO NO USE WITH THREE.ShaderChunk.meshphysical_frag ...
+        diffuse: { value: { "r": 0.36, "g": 0.51, "b": 0.65 } },
+        roughness: { value: 0.5 },
+        amplitude: { value: 0.25},
+        frequency: { value: 0.5 },
+        speed: { value: 0.3 },
+        // fogDensity: { value: 0.45 },
+        // fogColor: { value: new THREE.Vector3( 0, 0, 0 ) },
+        // uvScale: { value: new THREE.Vector2( 3.0, 1.0 ) },
+        // texture1: { value: cloudTexture },
+        // texture2: { value: lavaTexture },
+        time: { value: 1.0 }
+    };
+
+    const geometry = new THREE.PlaneGeometry(SIZE, SIZE, RESOLUTION, RESOLUTION).rotateX(-Math.PI / 2);
+
+    const material = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: // THREE.ShaderChunk.meshphysical_vert,
+            // document.getElementById( 'vertexShader' ).textContent
+            // defaultVertexShader,
+            webglHowItWorksVertexShader,
+            // vertex_shader,
+        fragmentShader: // THREE.ShaderChunk.meshphysical_frag,
+            // document.getElementById( 'fragmentShader' ).textContent
+            // defaultFragmentShader,
+            webglHowItWorksFragmentShader,
+        lights: true,
+        side: THREE.DoubleSide,
+        defines: {
+            STANDARD: '',
+            PHYSICAL: '',
+        },
+        extensions: {
+            derivatives: true,
+        },
+    });
+
+    const plane = new THREE.Mesh(geometry, material);
+    // plane.geometry = geometry;
+    // plane.material = material;
+
+    // plane.rotation.x = -(Math.PI / 2);
+
+    // Place objects
+    scene.add(plane);
+    // scene.add(sky);
+    scene.add(water);
+    // scene.add(rotatingCube);
+    scene.add(rotatingMesh);
+
+    // Place lights
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9)
+    directionalLight.position.set(-0.5, 10, -10)
+    scene.add(directionalLight)
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3)
+    scene.add(ambientLight)
+
+    // const pmremGenerator = new THREE.PMREMGenerator( renderer );
+    const sceneEnv = new THREE.Scene();
+
+    let renderTarget;
+
+    function updateSun() {
+
+        const phi = THREE.MathUtils.degToRad( 90 - parameters.elevation );
+        const theta = THREE.MathUtils.degToRad( parameters.azimuth );
+
+        sun.setFromSphericalCoords( 1, phi, theta );
+
+        sky.material.uniforms[ 'sunPosition' ].value.copy( sun );
+        water.material.uniforms[ 'sunDirection' ].value.copy( sun ).normalize();
+
+        if ( renderTarget !== undefined ) renderTarget.dispose();
+
+        sceneEnv.add( sky );
+        scene.add( sky );
+
+        // renderTarget = pmremGenerator.fromScene( sceneEnv );
+        // scene.environment = renderTarget.texture;
+
+    }
+
+    // Get rayspace from controller object and update position relative to plane (floor)
+    if (controllers.hasOwnProperty("right") && controllers.right !== null) {
+
+        const { gamepad, raySpace } = controllers.right;
+
+        raySpace.getWorldPosition(plane.position);
+        raySpace.getWorldQuaternion(plane.quaternion);
+    }
+
+    return function (currentSession, delta, time, sceneDataUpdate, sendDOMDataUpdate) {
+
+        // update the time uniform
+        plane.material.uniforms.time.value = time
+
+        // rotatingCube.rotX(0.01);
+        // rotatingCube.rotY(0.01);
+
+        rotatingMesh.rotX(0.0125 * (5 * delta));
+        rotatingMesh.rotY(0.05 * (5 * delta));
+
+        water.material.uniforms[ 'time' ].value += 0.1 / 60.0; // 0.0125 * (5 * delta);
+
+        // updateSun();
+
+        if (typeof sceneDataUpdate === "object" && sceneDataUpdate != null) {
+            console.log("sceneDataUpdate:", sceneDataUpdate);
+        }
+
+        if (typeof sendDOMDataUpdate === "function") {
+            const domDataUpdate = {
+                data: "data"
+            };
+
+            sendDOMDataUpdate(domDataUpdate);
+        }
+    }
+}
+
 
 //------------------------
 // Shaders and util functions from:
@@ -38,10 +232,10 @@ function monkeyPatch(shader, { defines = '', header = '', main = '', ...replaces
     `
     );
 
-    console.log(`
-    ${defines}
-    ${patchedShader}
-  `);
+    //   console.log(`
+    //   ${defines}
+    //   ${patchedShader}
+    // `);
 
     return (`
     ${defines}
@@ -206,185 +400,3 @@ const vertex_shader = monkeyPatch(THREE.ShaderChunk.meshphysical_vert, {
       transformed = displacedPosition;
     `,
 });
-
-
-export default function setupScene (renderer, scene, camera, composer, controllers, player) {
-
-    // Set player view
-    player.add(camera);
-
-    // // Get A WebGL context
-    // const gl = renderer.getContext();
-
-    sun = new THREE.Vector3();
-
-    // Skybox
-
-    const sky = new Sky();
-    sky.scale.setScalar( 10000 );
-
-    const skyUniforms = sky.material.uniforms;
-
-    skyUniforms[ 'turbidity' ].value = 10;
-    skyUniforms[ 'rayleigh' ].value = 2;
-    skyUniforms[ 'mieCoefficient' ].value = 0.005;
-    skyUniforms[ 'mieDirectionalG' ].value = 0.8;
-
-    const parameters = {
-        elevation: 2,
-        azimuth: 180
-    };
-
-    rotatingMesh.material = new THREE.ShaderMaterial({
-        uniforms: uniforms,
-        vertexShader: document.getElementById( 'vertexShader' ).textContent,
-        fragmentShader: document.getElementById( 'fragmentShader' ).textContent
-    });
-
-    const textureRepeatScale = 100;
-    water = new Water(
-        new THREE.PlaneGeometry( 10000, 10000 ),
-        {
-            distortionScale: 1 / textureRepeatScale,
-            fog: scene.fog !== undefined,
-            textureWidth: 512,
-            textureHeight: 512,
-            waterNormals: new THREE.TextureLoader(loadManager).load( 'material/textures/waternormals.jpg', function ( texture ) {
-                texture.repeat.set(textureRepeatScale, textureRepeatScale);
-                // texture.repeat.x = textureRepeatScale;
-                // texture.repeat.y = textureRepeatScale;
-                texture.wrapS = texture.wrapT = THREE.RepeatWrapping
-            } ),
-            sunDirection: new THREE.Vector3(),
-            sunColor: 0xffffff,
-            waterColor: 0x001e0f
-        }
-    );
-
-    water.rotation.x = - Math.PI / 2;
-    water.scale.x = water.scale.x; // / textureRepeatScale;
-    water.scale.y = water.scale.y; // / textureRepeatScale;
-    water.position.y = -textureRepeatScale/2;
-
-    // console.log(THREE.ShaderChunk.meshphysical_vert);
-    // console.log(THREE.ShaderChunk.meshphysical_frag);
-
-    uniforms = {
-        ...THREE.ShaderLib.physical.uniforms,
-        // diffuse: { value: "#5B82A6" }, // <= DO NO USE WITH THREE.ShaderChunk.meshphysical_frag ...
-        diffuse: { value: { "r": 0.36, "g": 0.51, "b": 0.65 } },
-        roughness: { value: 0.5 },
-        amplitude: { value: 0.25},
-        frequency: { value: 0.5 },
-        speed: { value: 0.3 },
-        // fogDensity: { value: 0.45 },
-        // fogColor: { value: new THREE.Vector3( 0, 0, 0 ) },
-        // uvScale: { value: new THREE.Vector2( 3.0, 1.0 ) },
-        // texture1: { value: cloudTexture },
-        // texture2: { value: lavaTexture },
-        time: { value: 1.0 }
-    };
-
-    const geometry = new THREE.PlaneGeometry(SIZE, SIZE, RESOLUTION, RESOLUTION).rotateX(-Math.PI / 2);
-
-    const material = new THREE.ShaderMaterial({
-        uniforms: uniforms,
-        vertexShader: // THREE.ShaderChunk.meshphysical_vert,
-            document.getElementById( 'vertexShader' ).textContent,
-            // vertex_shader,
-        fragmentShader: // THREE.ShaderChunk.meshphysical_frag,
-            document.getElementById( 'fragmentShader' ).textContent,
-        lights: true,
-        side: THREE.DoubleSide,
-        defines: {
-            STANDARD: '',
-            PHYSICAL: '',
-        },
-        extensions: {
-            derivatives: true,
-        },
-    });
-
-    const plane = new THREE.Mesh(geometry, material);
-    // plane.geometry = geometry;
-    // plane.material = material;
-
-    // plane.rotation.x = -(Math.PI / 2);
-
-    // Place objects
-    scene.add(plane);
-    // scene.add(sky);
-    scene.add(water);
-    // scene.add(rotatingCube);
-    scene.add(rotatingMesh);
-
-    // Place lights
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9)
-    directionalLight.position.set(-0.5, 10, -10)
-    scene.add(directionalLight)
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3)
-    scene.add(ambientLight)
-
-    // const pmremGenerator = new THREE.PMREMGenerator( renderer );
-    const sceneEnv = new THREE.Scene();
-
-    let renderTarget;
-
-    function updateSun() {
-
-        const phi = THREE.MathUtils.degToRad( 90 - parameters.elevation );
-        const theta = THREE.MathUtils.degToRad( parameters.azimuth );
-
-        sun.setFromSphericalCoords( 1, phi, theta );
-
-        sky.material.uniforms[ 'sunPosition' ].value.copy( sun );
-        water.material.uniforms[ 'sunDirection' ].value.copy( sun ).normalize();
-
-        if ( renderTarget !== undefined ) renderTarget.dispose();
-
-        sceneEnv.add( sky );
-        scene.add( sky );
-
-        // renderTarget = pmremGenerator.fromScene( sceneEnv );
-        // scene.environment = renderTarget.texture;
-
-    }
-
-    // Get rayspace from controller object and update position relative to plane (floor)
-    if (controllers.hasOwnProperty("right") && controllers.right !== null) {
-
-        const { gamepad, raySpace } = controllers.right;
-
-        raySpace.getWorldPosition(plane.position);
-        raySpace.getWorldQuaternion(plane.quaternion);
-    }
-
-    return function (currentSession, delta, time, sceneDataUpdate, sendDOMDataUpdate) {
-
-        // update the time uniform
-        plane.material.uniforms.time.value = time
-
-        // rotatingCube.rotX(0.01);
-        // rotatingCube.rotY(0.01);
-
-        rotatingMesh.rotX(0.0125 * (5 * delta));
-        rotatingMesh.rotY(0.05 * (5 * delta));
-
-        water.material.uniforms[ 'time' ].value += 0.1 / 60.0; // 0.0125 * (5 * delta);
-
-        // updateSun();
-
-        if (typeof sceneDataUpdate === "object" && sceneDataUpdate != null) {
-            console.log("sceneDataUpdate:", sceneDataUpdate);
-        }
-
-        if (typeof sendDOMDataUpdate === "function") {
-            const domDataUpdate = {
-                data: "data"
-            };
-
-            sendDOMDataUpdate(domDataUpdate);
-        }
-    }
-}
