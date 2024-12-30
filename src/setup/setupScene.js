@@ -11,8 +11,7 @@ import rotatingTorus from "../objects/rotatingTorus";
 import defaultVertexShader from '../shaders/default/vertexShader.glsl';
 import defaultFragmentShader from '../shaders/default/fragmentShader.glsl';
 
-import webglHowItWorksVertexShader from '../shaders/webgl-how-it-works/vertexShader.glsl';
-import webglHowItWorksFragmentShader from '../shaders/webgl-how-it-works/fragmentShader.glsl';
+import wavesVertexShader from '../shaders/waves/vertexShader.glsl';
 
 const rotatingMesh = rotatingTorus;
 let uniforms, sun, water;
@@ -49,10 +48,8 @@ export default function setupScene (renderer, scene, camera, composer, controlle
 
     rotatingMesh.material = new THREE.ShaderMaterial({
         uniforms: uniforms,
-        vertexShader: // document.getElementById( 'vertexShader' ).textContent,
-            defaultVertexShader,
-        fragmentShader: // document.getElementById( 'fragmentShader' ).textContent,
-            defaultFragmentShader,
+        vertexShader: defaultVertexShader,
+        fragmentShader: defaultFragmentShader,
     });
 
     const textureRepeatScale = 100;
@@ -103,15 +100,8 @@ export default function setupScene (renderer, scene, camera, composer, controlle
 
     const material = new THREE.ShaderMaterial({
         uniforms: uniforms,
-        vertexShader: // THREE.ShaderChunk.meshphysical_vert,
-            // document.getElementById( 'vertexShader' ).textContent
-            // defaultVertexShader,
-            webglHowItWorksVertexShader,
-            // vertex_shader,
-        fragmentShader: // THREE.ShaderChunk.meshphysical_frag,
-            // document.getElementById( 'fragmentShader' ).textContent
-            // defaultFragmentShader,
-            webglHowItWorksFragmentShader,
+        vertexShader: wavesVertexShader, // vertex_shader,
+        fragmentShader: defaultFragmentShader,
         lights: true,
         side: THREE.DoubleSide,
         defines: {
