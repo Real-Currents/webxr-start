@@ -81,6 +81,10 @@ async function initScene (canvas, setup = (renderer, scene, camera, controllers,
     renderer.xr.enabled = true;
     container.appendChild(renderer.domElement);
 
+    const stats = new Stats();
+    stats.showPanel(0);
+    container.appendChild(stats.dom);
+
     const camera = new THREE.PerspectiveCamera(
         50,
         previewWindow.width / previewWindow.height,
@@ -267,6 +271,8 @@ async function initScene (canvas, setup = (renderer, scene, camera, controllers,
 
                 const sceneDataUpdate = {};
 
+                stats.begin()
+
                 if (controllers.hasOwnProperty("right") && controllers.right !== null) {
 
                     const {gamepad, raySpace} = controllers.right;
@@ -321,6 +327,7 @@ async function initScene (canvas, setup = (renderer, scene, camera, controllers,
                 renderer.render(scene, camera);
                 // renderer.clear();
                 // composer.render( delta );
+                stats.end()
             });
 
             container.appendChild(xr_button);
@@ -331,16 +338,7 @@ async function initScene (canvas, setup = (renderer, scene, camera, controllers,
     return renderer;
 }
 
-function initStats() {
-    const stats = new Stats();
-    stats.showPanel(0);
-    document.body.appendChild(stats.dom);
-    return stats;
-}
-
 initScene(window.document.createElement('canvas'), setupScene)
     .then((renderer) => {
         console.log("WebXR has been initialized", renderer);
     });
-
-initStats()

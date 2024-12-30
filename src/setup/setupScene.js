@@ -12,14 +12,43 @@ const rotatingMesh = rotatingTorus;
 let uniforms, sun, water;
 
 const SIZE = 4;
-const RESOLUTION = 256;
+const RESOLUTION = 512;
 
 //------------------------
 // Shaders and util functions from:
 // https://codepen.io/marco_fugaro/pen/xxZWPWJ?editors=0010
 //------------------------
-
 // from https://github.com/hughsk/glsl-noise/blob/master/simplex/3d.glsl
+
+
+function monkeyPatch(shader, { defines = '', header = '', main = '', ...replaces }) {
+    let patchedShader = shader
+
+    const replaceAll = (str, find, rep) => str.split(find).join(rep)
+    Object.keys(replaces).forEach((key) => {
+        patchedShader = replaceAll(patchedShader, key, replaces[key])
+    })
+
+    patchedShader = patchedShader.replace(
+        'void main() {',
+        `
+    ${header}
+    void main() {
+      ${main}
+    `
+    );
+
+    console.log(`
+    ${defines}
+    ${patchedShader}
+  `);
+
+    return (`
+    ${defines}
+    ${patchedShader}
+  `);
+}
+
 const noise_shader = `
 //
 // Description : Array and textureless GLSL 2D/3D/4D simplex
@@ -125,46 +154,59 @@ float noise(vec3 v)
   }
 `;
 
-const vertex_shader = `
-  uniform float time;
-  uniform float amplitude;
-  uniform float speed;
-  uniform float frequency;
+const vertex_shader = monkeyPatch(THREE.ShaderChunk.meshphysical_vert, {
+    header: `
+      uniform float time;
+      uniform float amplitude;
+      uniform float speed;
+      uniform float frequency;
 
-  ${noise_shader}
-  
-  // the function which defines the displacement
-  float displace(vec3 point) {
-    return noise(vec3(point.x * frequency, point.z * frequency, time * speed)) * amplitude;
-  }
-  
-  // http://lolengine.net/blog/2013/09/21/picking-orthogonal-vector-combing-coconuts
-  vec3 orthogonal(vec3 v) {
-    return normalize(abs(v.x) > abs(v.z) ? vec3(-v.y, v.x, 0.0)
-    : vec3(0.0, -v.z, v.y));
-  }
-  
-  void main() {
-    vec3 displacedPosition = position + normal * displace(position);
-    
-    
-    float offset = ${SIZE / RESOLUTION};
-    vec3 tangent = orthogonal(normal);
-    vec3 bitangent = normalize(cross(normal, tangent));
-    vec3 neighbour1 = position + tangent * offset;
-    vec3 neighbour2 = position + bitangent * offset;
-    vec3 displacedNeighbour1 = neighbour1 + normal * displace(neighbour1);
-    vec3 displacedNeighbour2 = neighbour2 + normal * displace(neighbour2);
-    
-    // https://i.ya-webdesign.com/images/vector-normals-tangent-16.png
-    vec3 displacedTangent = displacedNeighbour1 - displacedPosition;
-    vec3 displacedBitangent = displacedNeighbour2 - displacedPosition;
-    
-    // https://upload.wikimedia.org/wikipedia/commons/d/d2/Right_hand_rule_cross_product.svg
-    vec3 displacedNormal = normalize(cross(displacedTangent, displacedBitangent));
+      ${noise_shader}
+      
+      // the function which defines the displacement
+      float displace(vec3 point) {
+        return noise(vec3(point.x * frequency, point.z * frequency, time * speed)) * amplitude;
+      }
+      
+      // http://lolengine.net/blog/2013/09/21/picking-orthogonal-vector-combing-coconuts
+      vec3 orthogonal(vec3 v) {
+        return normalize(abs(v.x) > abs(v.z) ? vec3(-v.y, v.x, 0.0)
+        : vec3(0.0, -v.z, v.y));
+      }
+    `,
+    // adapted from http://tonfilm.blogspot.com/2007/01/calculate-normals-in-shader.html
+    main: `
+      vec3 displacedPosition = position + normal * displace(position);
 
-  }
-`;
+
+      float offset = ${SIZE / RESOLUTION};
+      vec3 tangent = orthogonal(normal);
+      vec3 bitangent = normalize(cross(normal, tangent));
+      vec3 neighbour1 = position + tangent * offset;
+      vec3 neighbour2 = position + bitangent * offset;
+      vec3 displacedNeighbour1 = neighbour1 + normal * displace(neighbour1);
+      vec3 displacedNeighbour2 = neighbour2 + normal * displace(neighbour2);
+
+      // https://i.ya-webdesign.com/images/vector-normals-tangent-16.png
+      vec3 displacedTangent = displacedNeighbour1 - displacedPosition;
+      vec3 displacedBitangent = displacedNeighbour2 - displacedPosition;
+
+      // https://upload.wikimedia.org/wikipedia/commons/d/d2/Right_hand_rule_cross_product.svg
+      vec3 displacedNormal = normalize(cross(displacedTangent, displacedBitangent));
+    `,
+
+    '#include <defaultnormal_vertex>': THREE.ShaderChunk.defaultnormal_vertex.replace(
+        // transformedNormal will be used in the lighting calculations
+        'vec3 transformedNormal = objectNormal;',
+        `vec3 transformedNormal = displacedNormal;`
+    ),
+
+    // transformed is the output position
+    '#include <displacementmap_vertex>': `
+      transformed = displacedPosition;
+    `,
+});
+
 
 export default function setupScene (renderer, scene, camera, composer, controllers, player) {
 
@@ -199,9 +241,9 @@ export default function setupScene (renderer, scene, camera, composer, controlle
         fragmentShader: document.getElementById( 'fragmentShader' ).textContent
     });
 
-    const textureRepeatScale = 1000;
+    const textureRepeatScale = 100;
     water = new Water(
-        new THREE.PlaneGeometry( 6000, 6000 ),
+        new THREE.PlaneGeometry( 10000, 10000 ),
         {
             distortionScale: 1 / textureRepeatScale,
             fog: scene.fog !== undefined,
@@ -222,7 +264,7 @@ export default function setupScene (renderer, scene, camera, composer, controlle
     water.rotation.x = - Math.PI / 2;
     water.scale.x = water.scale.x; // / textureRepeatScale;
     water.scale.y = water.scale.y; // / textureRepeatScale;
-    water.position.y = -1;
+    water.position.y = -textureRepeatScale/2;
 
     // console.log(THREE.ShaderChunk.meshphysical_vert);
     // console.log(THREE.ShaderChunk.meshphysical_frag);
@@ -230,70 +272,9 @@ export default function setupScene (renderer, scene, camera, composer, controlle
     uniforms = {
         ...THREE.ShaderLib.physical.uniforms,
         // diffuse: { value: "#5B82A6" }, // <= DO NO USE WITH THREE.ShaderChunk.meshphysical_frag ...
-// #include <lights_physical_fragment> 	// Uncaught TypeError:
-// WebGL2RenderingContext.uniform3fv: Argument 2 could not be converted to any of: Float32Array, sequence<unrestricted float>.
-//    setValueV3f three.module.js:18471
-//    upload three.module.js:19376
-//    setProgram three.module.js:31008
-//    renderBufferDirect three.module.js:29615
-//    renderObject three.module.js:30492
-//    renderObjects three.module.js:30461
-//    renderScene three.module.js:30310
-//    render three.module.js:30128
-//    ...
-// #include <lights_fragment_begin>
-// #include <lights_fragment_maps>
-// #include <lights_fragment_end>  		// SHADER_INFO_LOG:
-//     ERROR: 0:1764: 'material' : undeclared identifier
-//     ERROR: 0:1764: 'RE_IndirectDiffuse_Physical' : no matching overloaded function found
-//     ERROR: 0:1767: 'material' : undeclared identifier
-//     ERROR: 0:1767: 'RE_IndirectSpecular_Physical' : no matching overloaded function found
-//
-//     FRAGMENT
-//
-//     ERROR: 0:1764: 'material' : undeclared identifier
-//     ERROR: 0:1764: 'RE_IndirectDiffuse_Physical' : no matching overloaded function found
-//     ERROR: 0:1767: 'material' : undeclared identifier
-//     ERROR: 0:1767: 'RE_IndirectSpecular_Physical' : no matching overloaded function found
-//
-//       1759: 	#ifdef USE_CLEARCOAT
-//       1760: 		clearcoatRadiance += getIBLRadiance( geometryViewDir, geometryClearcoatNormal, material.clearcoatRoughness );
-//       1761: 	#endif
-//       1762: #endif
-//       1763: #if defined( RE_IndirectDiffuse )
-//     > 1764: 	RE_IndirectDiffuse( irradiance, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );
-//       1765: #endif
-//       1766: #if defined( RE_IndirectSpecular )
-//       1767: 	RE_IndirectSpecular( radiance, iblIrradiance, clearcoatRadiance, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );
-//       1768: #endif
-//       1769: //				#include <aomap_fragment>
-//       1770: //				vec3 totalDiffuse = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse; three.module.js:20346:13
-//         onFirstUse (js stack)
-//         ...
-//         ...
-//				#include <aomap_fragment>
-//				vec3 totalDiffuse = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;
-//				vec3 totalSpecular = reflectedLight.directSpecular + reflectedLight.indirectSpecular;
-//				#include <transmission_fragment>
-//				vec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;
-//				#ifdef USE_SHEEN
-//					float sheenEnergyComp = 1.0 - 0.157 * max3( material.sheenColor );
-//					outgoingLight = outgoingLight * sheenEnergyComp + sheenSpecularDirect + sheenSpecularIndirect;
-//				#endif
-//				#ifdef USE_CLEARCOAT
-//					float dotNVcc = saturate( dot( geometryClearcoatNormal, geometryViewDir ) );
-//					vec3 Fcc = F_Schlick( material.clearcoatF0, material.clearcoatF90, dotNVcc );
-//					outgoingLight = outgoingLight * ( 1.0 - material.clearcoat * Fcc ) + ( clearcoatSpecularDirect + clearcoatSpecularIndirect ) * material.clearcoat;
-//				#endif
-//				#include <opaque_fragment>
-//				#include <tonemapping_fragment>
-//				#include <colorspace_fragment>
-//				#include <fog_fragment>
-//				#include <premultiplied_alpha_fragment>
-//				#include <dithering_fragment>
-
+        diffuse: { value: { "r": 0.36, "g": 0.51, "b": 0.65 } },
         roughness: { value: 0.5 },
-        amplitude: { value: 0.4},
+        amplitude: { value: 0.25},
         frequency: { value: 0.5 },
         speed: { value: 0.3 },
         // fogDensity: { value: 0.45 },
@@ -304,14 +285,15 @@ export default function setupScene (renderer, scene, camera, composer, controlle
         time: { value: 1.0 }
     };
 
-    const geometry = new THREE.PlaneGeometry(SIZE, SIZE, RESOLUTION, RESOLUTION);
+    const geometry = new THREE.PlaneGeometry(SIZE, SIZE, RESOLUTION, RESOLUTION).rotateX(-Math.PI / 2);
 
     const material = new THREE.ShaderMaterial({
         uniforms: uniforms,
         vertexShader: // THREE.ShaderChunk.meshphysical_vert,
-            document.getElementById( 'vertexShader' ).textContent,
-        fragmentShader: // THREE.ShaderChunk.meshphysical_frag,
-            document.getElementById( 'fragmentShader' ).textContent,
+            // document.getElementById( 'vertexShader' ).textContent,
+            vertex_shader,
+        fragmentShader: THREE.ShaderChunk.meshphysical_frag,
+            // document.getElementById( 'fragmentShader' ).textContent,
         lights: true,
         side: THREE.DoubleSide,
         defines: {
@@ -323,17 +305,26 @@ export default function setupScene (renderer, scene, camera, composer, controlle
         },
     });
 
-    plane.geometry = geometry;
-    plane.material = material;
+    const plane = new THREE.Mesh(geometry, material);
+    // plane.geometry = geometry;
+    // plane.material = material;
 
-    plane.rotation.x = -(Math.PI / 2);
+    // plane.rotation.x = -(Math.PI / 2);
 
     // Place objects
     scene.add(plane);
-    scene.add(sky);
+    // scene.add(sky);
     scene.add(water);
-    scene.add(rotatingCube);
+    // scene.add(rotatingCube);
     scene.add(rotatingMesh);
+
+    // Place lights
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9)
+    directionalLight.position.set(-0.5, 10, -10)
+    scene.add(directionalLight)
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3)
+    scene.add(ambientLight)
 
     // const pmremGenerator = new THREE.PMREMGenerator( renderer );
     const sceneEnv = new THREE.Scene();
@@ -371,15 +362,18 @@ export default function setupScene (renderer, scene, camera, composer, controlle
 
     return function (currentSession, delta, time, sceneDataUpdate, sendDOMDataUpdate) {
 
-        rotatingCube.rotX(0.01);
-        rotatingCube.rotY(0.01);
+        // update the time uniform
+        plane.material.uniforms.time.value = time
+
+        // rotatingCube.rotX(0.01);
+        // rotatingCube.rotY(0.01);
 
         rotatingMesh.rotX(0.0125 * (5 * delta));
         rotatingMesh.rotY(0.05 * (5 * delta));
 
         water.material.uniforms[ 'time' ].value += 0.1 / 60.0; // 0.0125 * (5 * delta);
 
-        updateSun();
+        // updateSun();
 
         if (typeof sceneDataUpdate === "object" && sceneDataUpdate != null) {
             console.log("sceneDataUpdate:", sceneDataUpdate);

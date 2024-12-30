@@ -1,5 +1,5 @@
 import * as THREE from "three";
 
-const torusGeometry = new THREE.TorusGeometry( 0.65, 0.3, 30, 30 );
+const torusGeometry = new THREE.TorusGeometry( 6.5, 3.0, 300, 300 );
 
 export default torusGeometry;
