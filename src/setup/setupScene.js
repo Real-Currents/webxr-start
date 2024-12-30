@@ -290,10 +290,10 @@ export default function setupScene (renderer, scene, camera, composer, controlle
     const material = new THREE.ShaderMaterial({
         uniforms: uniforms,
         vertexShader: // THREE.ShaderChunk.meshphysical_vert,
-            // document.getElementById( 'vertexShader' ).textContent,
-            vertex_shader,
-        fragmentShader: THREE.ShaderChunk.meshphysical_frag,
-            // document.getElementById( 'fragmentShader' ).textContent,
+            document.getElementById( 'vertexShader' ).textContent,
+            // vertex_shader,
+        fragmentShader: // THREE.ShaderChunk.meshphysical_frag,
+            document.getElementById( 'fragmentShader' ).textContent,
         lights: true,
         side: THREE.DoubleSide,
         defines: {
