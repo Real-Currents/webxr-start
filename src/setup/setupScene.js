@@ -222,6 +222,8 @@ function monkeyPatch(shader, { defines = '', header = '', main = '', ...replaces
     `
     );
 
+    console.log(THREE.ShaderChunk.common);
+
     //   console.log(`
     //   ${defines}
     //   ${patchedShader}
