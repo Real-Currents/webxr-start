@@ -46,12 +46,6 @@ export default function setupScene (renderer, scene, camera, composer, controlle
         azimuth: 180
     };
 
-    rotatingMesh.material = new THREE.ShaderMaterial({
-        uniforms: uniforms,
-        vertexShader: defaultVertexShader,
-        fragmentShader: defaultFragmentShader,
-    });
-
     const textureRepeatScale = 100;
     water = new Water(
         new THREE.PlaneGeometry( 10000, 10000 ),
@@ -118,6 +112,12 @@ export default function setupScene (renderer, scene, camera, composer, controlle
     // plane.material = material;
 
     // plane.rotation.x = -(Math.PI / 2);
+
+    rotatingMesh.material = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: defaultVertexShader,
+        fragmentShader: defaultFragmentShader,
+    });
 
     // Place objects
     scene.add(plane);
@@ -202,7 +202,7 @@ export default function setupScene (renderer, scene, camera, composer, controlle
 // Shaders and util functions from:
 // https://codepen.io/marco_fugaro/pen/xxZWPWJ?editors=0010
 //------------------------
-// from https://github.com/hughsk/glsl-noise/blob/master/simplex/3d.glsl
+// From https://github.com/hughsk/glsl-noise/blob/master/simplex/3d.glsl
 
 
 function monkeyPatch(shader, { defines = '', header = '', main = '', ...replaces }) {
