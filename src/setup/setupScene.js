@@ -46,30 +46,30 @@ export default function setupScene (renderer, scene, camera, composer, controlle
         azimuth: 180
     };
 
-    const textureRepeatScale = 100;
-    water = new Water(
-        new THREE.PlaneGeometry( 10000, 10000 ),
-        {
-            distortionScale: 1 / textureRepeatScale,
-            fog: scene.fog !== undefined,
-            textureWidth: 512,
-            textureHeight: 512,
-            waterNormals: new THREE.TextureLoader(loadManager).load( 'material/textures/waternormals.jpg', function ( texture ) {
-                texture.repeat.set(textureRepeatScale, textureRepeatScale);
-                // texture.repeat.x = textureRepeatScale;
-                // texture.repeat.y = textureRepeatScale;
-                texture.wrapS = texture.wrapT = THREE.RepeatWrapping
-            } ),
-            sunDirection: new THREE.Vector3(),
-            sunColor: 0xffffff,
-            waterColor: 0x001e0f
-        }
-    );
-
-    water.rotation.x = - Math.PI / 2;
-    water.scale.x = water.scale.x; // / textureRepeatScale;
-    water.scale.y = water.scale.y; // / textureRepeatScale;
-    water.position.y = -textureRepeatScale/2;
+    // const textureRepeatScale = 100;
+    // water = new Water(
+    //     new THREE.PlaneGeometry( 10000, 10000 ),
+    //     {
+    //         distortionScale: 1 / textureRepeatScale,
+    //         fog: scene.fog !== undefined,
+    //         textureWidth: 512,
+    //         textureHeight: 512,
+    //         waterNormals: new THREE.TextureLoader(loadManager).load( 'material/textures/waternormals.jpg', function ( texture ) {
+    //             texture.repeat.set(textureRepeatScale, textureRepeatScale);
+    //             // texture.repeat.x = textureRepeatScale;
+    //             // texture.repeat.y = textureRepeatScale;
+    //             texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+    //         } ),
+    //         sunDirection: new THREE.Vector3(),
+    //         sunColor: 0xffffff,
+    //         waterColor: 0x001e0f
+    //     }
+    // );
+    //
+    // water.rotation.x = - Math.PI / 2;
+    // water.scale.x = water.scale.x; // / textureRepeatScale;
+    // water.scale.y = water.scale.y; // / textureRepeatScale;
+    // water.position.y = -textureRepeatScale/2;
 
     // console.log(THREE.ShaderChunk.meshphysical_vert);
     // console.log(THREE.ShaderChunk.meshphysical_frag);
@@ -122,9 +122,9 @@ export default function setupScene (renderer, scene, camera, composer, controlle
     // Place objects
     scene.add(plane);
     // scene.add(sky);
-    scene.add(water);
+    // scene.add(water);
     // scene.add(rotatingCube);
-    scene.add(rotatingMesh);
+    // scene.add(rotatingMesh);
 
     // Place lights
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9)
@@ -179,9 +179,9 @@ export default function setupScene (renderer, scene, camera, composer, controlle
         rotatingMesh.rotX(0.0125 * (5 * delta));
         rotatingMesh.rotY(0.05 * (5 * delta));
 
-        water.material.uniforms[ 'time' ].value += 0.1 / 60.0; // 0.0125 * (5 * delta);
-
         // updateSun();
+
+        // water.material.uniforms[ 'time' ].value += 0.1 / 60.0; // 0.0125 * (5 * delta);
 
         if (typeof sceneDataUpdate === "object" && sceneDataUpdate != null) {
             console.log("sceneDataUpdate:", sceneDataUpdate);
