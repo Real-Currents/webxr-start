@@ -7,6 +7,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
 
+import defaultVertexShader from './shaders/default/vertexShader.glsl';
+import defaultFragmentShader from './shaders/default/fragmentShader.glsl';
+
 import setupScene from "./setup/setupScene";
 
 let currentSession;
@@ -19,9 +22,25 @@ const controllers = {
     right: null,
 };
 
+let uniforms = {
+    ...THREE.ShaderLib.physical.uniforms,
+    // diffuse: { value: "#5B82A6" }, // <= DO NO USE WITH THREE.ShaderChunk.meshphysical_frag ...
+    diffuse: { value: { "r": 0.36, "g": 0.51, "b": 0.65 } },
+    roughness: { value: 0.5 },
+    amplitude: { value: 0.25},
+    frequency: { value: 0.5 },
+    speed: { value: 0.3 },
+    // fogDensity: { value: 0.45 },
+    // fogColor: { value: new THREE.Vector3( 0, 0, 0 ) },
+    // uvScale: { value: new THREE.Vector2( 3.0, 1.0 ) },
+    // texture1: { value: cloudTexture },
+    // texture2: { value: lavaTexture },
+    time: { value: 1.0 }
+};
+
 let waiting_for_confirmation = false;
 
-async function initScene (setup = (scene, camera, controllers, players) => {}) {
+async function initScene (setup = (scene, camera, controllers, players, mapLayers, setLayer) => {}) {
 
     // iwer setup
     let nativeWebXRSupport = false;
@@ -76,6 +95,10 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     renderer.xr.enabled = true;
     container.appendChild(renderer.domElement);
 
+    console.log(renderer.domElement);
+
+    container.appendChild(renderer.domElement);
+
     const camera = new THREE.PerspectiveCamera(
         50,
         previewWindow.width / previewWindow.height,
@@ -87,19 +110,6 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     const controls = new OrbitControls(camera, container);
     controls.target.set(0, 1.6, 0);
     controls.update();
-
-    console.log(renderer.domElement);
-
-    container.appendChild(renderer.domElement);
-
-    function onWindowResize() {
-        camera.aspect = previewWindow.width / previewWindow.height;
-        camera.updateProjectionMatrix();
-
-        renderer.setSize(previewWindow.width, previewWindow.height);
-    }
-
-    window.addEventListener('resize', onWindowResize);
 
     const environment = new RoomEnvironment(renderer);
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -140,7 +150,99 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         // gripSpace.visible = false;
     }
 
-    const updateScene = await setup(scene, camera, controllers, player);
+    // Portal code from:
+    //   https://medium.com/@petercoolen/breaking-down-the-portal-effect-how-to-create-an-immersive-ar-experience-9654aa882c13
+    // Layers to track mesh objects "inside" and "outside" the portal
+    const mapLayers = new Map();
+    mapLayers.set("inside", 1);
+    mapLayers.set("outside", 2);
+    mapLayers.set("portal", 3);
+
+    // Helper function to set nested meshes to layers
+    function setLayer(object, layer) {
+        object.layers.set(layer);
+        object.traverse(function (child) {
+            child.layers.set(layer);
+        });
+    }
+
+    // Create the render target for the "inside" of the portal
+    const renderTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
+
+    const resolution = new THREE.Vector2();
+
+    // Create the portal mesh
+    const portalGeometry = new THREE.PlaneGeometry(3, 3);
+    const portalMaterial = new THREE.MeshBasicMaterial({ // new THREE.ShaderMaterial({
+        map: renderTarget.texture,
+        side: THREE.DoubleSide,
+        // uniforms: uniforms,
+        // vertexShader: defaultVertexShader,
+        // fragmentShader: defaultFragmentShader,
+    });
+    portalMaterial.onBeforeCompile = (shader) => {
+        shader.uniforms.uResolution = new THREE.Uniform(resolution);
+
+        shader.vertexShader = defaultVertexShader;
+
+        shader.fragmentShader = `
+    uniform vec2 uResolution;
+` + shader.fragmentShader;
+
+        shader.fragmentShader = shader.fragmentShader.replace(
+            "#include <map_fragment>", `
+    vec2 pos = gl_FragCoord.xy/uResolution;
+    vec4 sampledDiffuseColor = texture2D( map, pos );
+    diffuseColor *= sampledDiffuseColor;
+`);
+
+        shader.fragmentShader = shader.fragmentShader.replace(
+            "#include <dithering_fragment>",
+            "#include <dithering_fragment>" + `
+    // gl_FragColor = vec4(1, 0, 0, 1);
+    // gl_FragColor = vec4(vNormal * 0.5 + 0.5, 1);
+    gl_FragColor = diffuseColor * vec4(vNormal * 0.5 + 0.5, 1);
+`);
+
+        console.log("FragmentShader:\n" + shader.fragmentShader);
+    };
+    const portal = new THREE.Mesh(portalGeometry, portalMaterial);
+
+    portal.position.y = 1.5;
+
+    // Setup Clipping planes
+    const globalPlaneInside = [new THREE.Plane(new THREE.Vector3(0, 0, 1), 0)];
+    const globalPlaneOutside = [new THREE.Plane(new THREE.Vector3(0, 0, -1), 0)];
+
+    let isInsidePortal = false;
+    let wasOutside = true;
+
+    const portalRadialBounds = 0.5; // relative to portal size
+    function testPortalBounds() {
+        const isOutside = camera.position.z > 0;
+        const distance = portal.position.distanceTo(camera.position);
+        const withinPortalBounds = distance < portalRadialBounds;
+        if (wasOutside !== isOutside && withinPortalBounds) {
+            isInsidePortal = !isOutside;
+        }
+        wasOutside = isOutside;
+    }
+
+    setLayer(portal, mapLayers.get("portal"));
+    scene.add(portal);
+
+    function onWindowResize() {
+        camera.aspect = previewWindow.width / previewWindow.height;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(previewWindow.width, previewWindow.height);
+
+        resolution.set(previewWindow.width, previewWindow.height);
+    }
+
+    window.addEventListener('resize', onWindowResize);
+
+    const updateScene = await setup(scene, camera, controllers, player, mapLayers, setLayer);
 
     renderer.setAnimationLoop(() => {
         const delta = clock.getDelta();
@@ -283,6 +385,39 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         
         updateScene(currentSession, delta, time, (data.hasOwnProperty("action")) ? data : null);
 
+        // renderer.render(scene, camera);
+        testPortalBounds();
+
+        // first render
+        renderer.clippingPlanes = isInsidePortal
+            ? globalPlaneInside
+            : globalPlaneOutside;
+        // modify scene before rendering the inside
+        camera.layers.disable(mapLayers.get("portal"));
+        if (isInsidePortal) {
+            camera.layers.disable(mapLayers.get("inside"));
+            camera.layers.enable(mapLayers.get("outside"));
+        } else {
+            camera.layers.disable(mapLayers.get("outside"));
+            camera.layers.enable(mapLayers.get("inside"));
+        }
+        // render inside of portal
+        renderer.setRenderTarget(renderTarget);
+        renderer.render(scene, camera);
+
+        // second render
+        renderer.clippingPlanes = [];
+        // modify scene before rendering the outside
+        camera.layers.enable(mapLayers.get("portal"));
+        if (isInsidePortal) {
+            camera.layers.disable(mapLayers.get("outside"));
+            camera.layers.enable(mapLayers.get("inside"));
+        } else {
+            camera.layers.disable(mapLayers.get("inside"));
+            camera.layers.enable(mapLayers.get("outside"));
+        }
+        // render outside of portal + portal
+        renderer.setRenderTarget(null);
         renderer.render(scene, camera);
     });
 
