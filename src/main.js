@@ -121,10 +121,10 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
             gripSpace.visible = true;
             const handedness = e.data.handedness;
             controllers[handedness] = {
+                gamepad: new GamepadWrapper(e.data.gamepad),
                 raySpace,
                 gripSpace,
                 mesh,
-                gamepad: new GamepadWrapper(e.data.gamepad),
             };
         });
 
@@ -160,12 +160,18 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
             if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
                 console.log("Trigger on right controller was activated:", XR_BUTTONS.TRIGGER, gamepad);
 
+                const controller_vector = new THREE.Group();
+
+                raySpace.getWorldPosition(controller_vector.position);
+                raySpace.getWorldQuaternion(controller_vector.quaternion);
+
                 if (!!waiting_for_confirmation) {
-                    console.log("Cancel event");
+                    console.log("Cancel action");
                     waiting_for_confirmation = false;
                 }
 
                 data.action = `Trigger on right controller was activated: ${XR_BUTTONS.TRIGGER}`;
+                data.controller_vector = controller_vector;
                 data.waiting_for_confirmation = waiting_for_confirmation;
 
             } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_1)) {
@@ -204,7 +210,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
                             console.log("Button on right controller was activated:", XR_BUTTONS[b], gamepad);
 
                             if (!!waiting_for_confirmation) {
-                                console.log("Cancel event");
+                                console.log("Cancel action");
                                 waiting_for_confirmation = false;
                             }
 
@@ -222,11 +228,39 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
             if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
                 console.log("Trigger on left controller was activated:", XR_BUTTONS.TRIGGER, gamepad);
 
+                const controller_vector = new THREE.Group();
+
+                raySpace.getWorldPosition(controller_vector.position);
+                raySpace.getWorldQuaternion(controller_vector.quaternion);
+
+                if (!!waiting_for_confirmation) {
+                    console.log("Cancel action");
+                    waiting_for_confirmation = false;
+                }
+
+                data.action = `Trigger on left controller was activated: ${XR_BUTTONS.TRIGGER}`;
+                data.controller_vector = controller_vector;
+                data.waiting_for_confirmation = waiting_for_confirmation;
+
             } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_1)) {
                 console.log("BUTTON_1 (X) on left controller was activated:", XR_BUTTONS.BUTTON_1, gamepad);
 
+                if (!!waiting_for_confirmation) {
+                    console.log("Cancel action");
+                    waiting_for_confirmation = false;
+                }
+
+                data.waiting_for_confirmation = waiting_for_confirmation;
+
             } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_2)) {
                 console.log("BUTTON_2 (Y) on left controller was activated:", XR_BUTTONS.BUTTON_2, gamepad);
+
+                if (!!waiting_for_confirmation) {
+                    console.log("Cancel action");
+                    waiting_for_confirmation = false;
+                }
+
+                data.waiting_for_confirmation = waiting_for_confirmation;
 
             } else {
                 for (const b in XR_BUTTONS) {
@@ -234,6 +268,13 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
                         // console.log("Check button: ", XR_BUTTONS[b]);
                         if (gamepad.getButtonClick(XR_BUTTONS[b])) {
                             console.log("Button on left controller was activated:", XR_BUTTONS[b], gamepad);
+
+                            if (!!waiting_for_confirmation) {
+                                console.log("Cancel action");
+                                waiting_for_confirmation = false;
+                            }
+
+                            data.waiting_for_confirmation = waiting_for_confirmation;
                         }
                     }
                 }
