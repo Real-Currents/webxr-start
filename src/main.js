@@ -151,7 +151,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
             }
         });
         
-        const sceneDataUpdate = {};
+        const data = {};
 
         if (controllers.hasOwnProperty("right") && controllers.right !== null) {
 
@@ -160,17 +160,24 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
             if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
                 console.log("Trigger on right controller was activated:", XR_BUTTONS.TRIGGER, gamepad);
 
-                sceneDataUpdate.action = `Trigger on right controller was activated: ${XR_BUTTONS.TRIGGER}`;
-                sceneDataUpdate.waiting_for_confirmation = waiting_for_confirmation;
+                if (!!waiting_for_confirmation) {
+                    console.log("Cancel event");
+                    waiting_for_confirmation = false;
+                }
+
+                data.action = `Trigger on right controller was activated: ${XR_BUTTONS.TRIGGER}`;
+                data.waiting_for_confirmation = waiting_for_confirmation;
 
             } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_1)) {
                 console.log("BUTTON_1 (A) on right controller was activated:", XR_BUTTONS.BUTTON_1, gamepad);
                 if (!!waiting_for_confirmation) {
                     console.log("Confirm action");
                     waiting_for_confirmation = false;
+
                     console.log("End session");
-                    sceneDataUpdate.action = "End session confirmed";
-                    sceneDataUpdate.waiting_for_confirmation = waiting_for_confirmation;
+
+                    data.action = "End session confirmed";
+                    data.waiting_for_confirmation = waiting_for_confirmation;
                     currentSession.end();
                 }
 
@@ -180,15 +187,14 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
                 if (!!waiting_for_confirmation) {
                     console.log("Cancel action");
                     waiting_for_confirmation = false;
-                    sceneDataUpdate.action = "End session cancelled";
-                    sceneDataUpdate.waiting_for_confirmation = waiting_for_confirmation;
-
+                    data.action = "End session cancelled";
                 } else {
                     console.log("Waiting for confirmation...")
                     waiting_for_confirmation = true;
-                    sceneDataUpdate.action = "End session initiated";
-                    sceneDataUpdate.waiting_for_confirmation = waiting_for_confirmation;
+                    data.action = "End session initiated";
                 }
+
+                data.waiting_for_confirmation = waiting_for_confirmation;
 
             } else {
                 for (const b in XR_BUTTONS) {
@@ -196,13 +202,45 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
                         // console.log("Check button: ", XR_BUTTONS[b]);
                         if (gamepad.getButtonClick(XR_BUTTONS[b])) {
                             console.log("Button on right controller was activated:", XR_BUTTONS[b], gamepad);
+
+                            if (!!waiting_for_confirmation) {
+                                console.log("Cancel event");
+                                waiting_for_confirmation = false;
+                            }
+
+                            data.waiting_for_confirmation = waiting_for_confirmation;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (controllers.hasOwnProperty("left") && controllers.left !== null) {
+
+            const { gamepad, raySpace } = controllers.left;
+
+            if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
+                console.log("Trigger on left controller was activated:", XR_BUTTONS.TRIGGER, gamepad);
+
+            } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_1)) {
+                console.log("BUTTON_1 (X) on left controller was activated:", XR_BUTTONS.BUTTON_1, gamepad);
+
+            } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_2)) {
+                console.log("BUTTON_2 (Y) on left controller was activated:", XR_BUTTONS.BUTTON_2, gamepad);
+
+            } else {
+                for (const b in XR_BUTTONS) {
+                    if (XR_BUTTONS.hasOwnProperty(b)) {
+                        // console.log("Check button: ", XR_BUTTONS[b]);
+                        if (gamepad.getButtonClick(XR_BUTTONS[b])) {
+                            console.log("Button on left controller was activated:", XR_BUTTONS[b], gamepad);
                         }
                     }
                 }
             }
         }
         
-        updateScene(currentSession, delta, time, (Object.keys(sceneDataUpdate).length > 0) ? sceneDataUpdate : null);
+        updateScene(currentSession, delta, time, (data.hasOwnProperty("action")) ? data : null);
 
         renderer.render(scene, camera);
     });
