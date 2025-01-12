@@ -140,7 +140,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         // gripSpace.visible = false;
     }
 
-    const updateScene = await setup(scene, camera, controllers, player);
+    const updateScene = setup(scene, camera, controllers, player);
 
     renderer.setAnimationLoop(() => {
         const delta = clock.getDelta();
@@ -281,7 +281,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
             }
         }
         
-        updateScene(currentSession, delta, time, (data.hasOwnProperty("action")) ? data : null);
+        updateScene(currentSession, delta, time, data, null);
 
         renderer.render(scene, camera);
     });
