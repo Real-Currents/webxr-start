@@ -96,10 +96,11 @@ export default function setupScene (scene, camera, controllers, player, mapLayer
 
     // Place other objects
     sceneObjects.push(plane);
-    sceneObjects.push(rotatingCube);
+    // setLayer(plane, mapLayers.get("outside"));
+    // sceneObjects.push(rotatingCube);
     rotatingCube.position.y = 1;
     setLayer(rotatingCube, mapLayers.get("outside"));
-    
+
     sceneObjects.forEach(m => scene.add(m));
 
     return function (currentSession, delta, time, data_in, sendData_out) {

@@ -10,7 +10,7 @@ import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFa
 import setupScene from "./setup/setupScene";
 
 import defaultVertexShader from './shaders/default/vertexShader.glsl';
-import defaultFragmentShader from './shaders/default/fragmentShader.glsl';
+import portalFragmentShader from './shaders/portal/fragmentShader.glsl';
 
 let currentSession;
 
@@ -96,16 +96,8 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
 
     console.log(container);
 
-
-    // Adaptation of portal example from
-    //   [Breaking Down the Portal Effect: How to Create an Immersive AR Experience](https://medium.com/@petercoolen/breaking-down-the-portal-effect-how-to-create-an-immersive-ar-experience-9654aa882c13)
-    //   Code: https://codepen.io/Qubica/pen/bGjRLXP
-    // ... BUT, one thing that is very different is that the "inside"/"outside" boundaries, which
-    // are hardcoded directional vectors) have to be swapped for WebXR; I don't know why...
     const renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        // canvas: canvas,
-        // context: renderContext
+        antialias: true
     });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(previewWindow.width, previewWindow.height);
@@ -122,19 +114,13 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
         renderer.setSize(width, height);
     }
 
-    const portalCanvas = window.document.createElement('canvas');
-    const portalContext = portalCanvas.getContext("webgl2");
-    const portalRenderer = new THREE.WebGLRenderer({
-        antialias: true,
-        canvas: portalCanvas,
-        context: portalContext
-    });
     const portalRenderTarget = new THREE.WebGLRenderTarget(1, 1);
-    portalRenderer.localClippingEnabled = true;
 
     function resizePortalRenderTarget(width, height) {
         portalRenderTarget.setSize(width, height);
     }
+
+    resizePortalRenderTarget(previewWindow.width, previewWindow.height);
 
     const resolution = new THREE.Vector2();
 
@@ -204,11 +190,60 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
 
     // Portal code from:
     //   https://medium.com/@petercoolen/breaking-down-the-portal-effect-how-to-create-an-immersive-ar-experience-9654aa882c13
+
+    // Adaptation of portal example from
+    //   [Breaking Down the Portal Effect: How to Create an Immersive AR Experience](https://medium.com/@petercoolen/breaking-down-the-portal-effect-how-to-create-an-immersive-ar-experience-9654aa882c13)
+    //   Code: https://codepen.io/Qubica/pen/bGjRLXP
+    // ... BUT, one thing that is very different is that the "inside"/"outside" boundaries, which
+    // are hardcoded directional vectors) have to be swapped for WebXR; I don't know why...
+    const portalCanvas = document.createElement('canvas');
+    document.body.prepend(portalCanvas);
+    const ctx = portalCanvas.getContext("webgl2"); //.getContext('2d');
+    const texture = new THREE.CanvasTexture(portalCanvas);
+
+    ctx.canvas.width = previewWindow.width;
+    ctx.canvas.height = previewWindow.height;
+
+    // ctx.fillStyle = "transparent";
+    // ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    //
+    // function randInt(min, max) {
+    //     if (max === undefined) {
+    //         max = min;
+    //         min = 0;
+    //     }
+    //     return Math.random() * (max - min) + min | 0;
+    // }
+    //
+    // function drawRandomDot() {
+    //     ctx.strokeStyle = `#${randInt(0x1000000).toString(16).padStart(6, '0')}`;
+    //     ctx.fillStyle = `#${randInt(0x1000000).toString(16).padStart(6, '0')}`;
+    //     ctx.beginPath();
+    //
+    //     const x = randInt(ctx.canvas.width);
+    //     const y = randInt(ctx.canvas.height);
+    //     const radius = randInt(10, 64);
+    //     ctx.arc(x, y, radius, 0, Math.PI * 2);
+    //     ctx.stroke();
+    //     ctx.fill();
+    // }
+    //
+    // for (let i = 0; i < 1000; i++) {
+    //     drawRandomDot();
+    // }
+
+    const portalRenderer = new THREE.WebGLRenderer({ canvas: portalCanvas, antialias: true });
+    portalRenderer.setPixelRatio(window.devicePixelRatio);
+    portalRenderer.setSize(previewWindow.width, previewWindow.height);
+    portalRenderer.xr.enabled = false;
+    portalRenderer.localClippingEnabled = false;
+
     function createPortal(size) {
         const geometry = new THREE.PlaneGeometry(size, size);
-        const material = new THREE.MeshBasicMaterial({
-          // new THREE.ShaderMaterial({
+        const material = new THREE.MeshBasicMaterial({ // new THREE.ShaderMaterial({
             map: portalRenderTarget.texture,
+            // map: texture,
+            opacity: 1.0,
             side: THREE.DoubleSide,
             // uniforms: {
             //     ...THREE.ShaderLib.physical.uniforms,
@@ -220,12 +255,14 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
             //     time: { value: 1.0 }
             // },
             // vertexShader: defaultVertexShader,
-            // fragmentShader: defaultFragmentShader,
+            // fragmentShader: portalFragmentShader,
         });
         material.onBeforeCompile = (shader) => {
             shader.uniforms.uResolution = new THREE.Uniform(resolution);
 
             shader.vertexShader = defaultVertexShader;
+
+            console.log("VertexShader:\n" + shader.vertexShader);
 
             shader.fragmentShader = `
     uniform vec2 uResolution;
@@ -270,44 +307,52 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
 
 
     function renderPortal (sceneObjects) {
-        portalRenderer.clippingPlanes = isInsidePortal
-            ? globalPlaneInside
-            : globalPlaneOutside;
+        // portalRenderer.clippingPlanes = isInsidePortal
+        //     ? globalPlaneInside
+        //     : globalPlaneOutside;
 
-        sceneObjects.forEach(m => {
-            if (m.hasOwnProperty("material") && m.material.hasOwnProperty("clippingPlanes")) {
-                m.material.clippingPlanes = isInsidePortal
-                    ? globalPlaneInside
-                    : globalPlaneOutside;
-            }
-        });
+        // sceneObjects.forEach(m => {
+        //     if (m.hasOwnProperty("material") && m.material.hasOwnProperty("clippingPlanes")) {
+        //         m.material.clippingPlanes = isInsidePortal
+        //             ? globalPlaneInside
+        //             : globalPlaneOutside;
+        //     }
+        // });
 
         camera.layers.disable(mapLayers.get("portal"));
-        if (isInsidePortal) {
-            camera.layers.disable(mapLayers.get("inside"));
+        // if (isInsidePortal) {
+        //     camera.layers.disable(mapLayers.get("inside"));
             camera.layers.enable(mapLayers.get("outside"));
-        } else {
-            camera.layers.disable(mapLayers.get("outside"));
+        // } else {
+        //     camera.layers.disable(mapLayers.get("outside"));
             camera.layers.enable(mapLayers.get("inside"));
-        }
+        // }
 
+        portalRenderer.setRenderTarget(null);
+        portalRenderer.render(scene, camera);
+        texture.needsUpdate = true;
         portalRenderer.setRenderTarget(portalRenderTarget);
         portalRenderer.clear();
         portalRenderer.render(scene, camera);
+        // renderer.xr.enabled = false;
+        // renderer.localClippingEnabled = false;
+        // renderer.setRenderTarget(portalRenderTarget);
+        // renderer.clear();
+        // renderer.render(scene, camera);
     }
 
     function renderWorld (sceneObjects) {
-        renderer.clippingPlanes = [];
-
-        sceneObjects.forEach(m => {
-            if (m.hasOwnProperty("material") && m.material.hasOwnProperty("clippingPlanes")) {
-                m.material.clippingPlanes = isInsidePortal
-                    ? globalPlaneOutside
-                    : globalPlaneInside;
-            }
-        });
-
-        portalMesh.material.side = isInsidePortal ? THREE.BackSide : THREE.FrontSide;
+        // renderer.clippingPlanes = [];
+        //
+        // sceneObjects.forEach(m => {
+        //     if (m.hasOwnProperty("material") && m.material.hasOwnProperty("clippingPlanes")) {
+        //         m.material.clippingPlanes = isInsidePortal
+        //             ? globalPlaneOutside
+        //             : globalPlaneInside;
+        //     }
+        // });
+        //
+        // portalMesh.material.side = isInsidePortal ? THREE.BackSide : THREE.FrontSide;
 
         camera.layers.enable(mapLayers.get("portal"));
         if (isInsidePortal) {
@@ -318,7 +363,8 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
             camera.layers.enable(mapLayers.get("outside"));
         }
 
-        renderer.clear();
+        renderer.setRenderTarget(null);
+        // renderer.clear();
         renderer.render(scene, camera);
     }
 
