@@ -122,13 +122,13 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
     }
 
     const previewWindow = {
-        width: window.innerWidth, // / 2, // 640,
+        width: window.innerWidth / 2, // 640,
         height: window.innerHeight + 10, // 480,
     };
 
     const body = document.body,
         container = document.createElement('div');
-    container.style = `display: block; background-color: #000; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
+    container.style = `display: inline-block; background-color: #000; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
     body.appendChild(container);
 
     console.log(container);
@@ -180,8 +180,8 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
 
     const cameraLookAtTarget = new THREE.Vector3(0, 0.5, 0);
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableZoom = false;
-    controls.enablePan = false;
+    // controls.enableZoom = false;
+    // controls.enablePan = false;
     controls.target = cameraLookAtTarget;
     controls.update();
 
@@ -220,13 +220,13 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
         if (mapDirection.get("isRight")) right();
     }
 
-    const worldDirection = new THREE.Vector3();
-    function updateCameraTarget() {
-        camera.getWorldDirection(worldDirection);
-        cameraLookAtTarget
-            .copy(camera.position)
-            .add(worldDirection.multiplyScalar(0.01));
-    }
+    // const worldDirection = new THREE.Vector3();
+    // function updateCameraTarget() {
+    //     camera.getWorldDirection(worldDirection);
+    //     cameraLookAtTarget
+    //         .copy(camera.position)
+    //         .add(worldDirection.multiplyScalar(0.01));
+    // }
 
     for (let i = 0; i < 2; i++) {
         const raySpace = renderer.xr.getController(i);
@@ -275,6 +275,7 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
     portalRenderer.setSize(previewWindow.width, previewWindow.height);
     portalRenderer.xr.enabled = false;
     portalRenderer.localClippingEnabled = true;
+    portalRenderer.domElement.style.display = "inline-block";
     document.body.appendChild(portalRenderer.domElement);
 
     function createPortal(size) {
@@ -553,9 +554,8 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
 
         testPortalBounds();
 
-        // updateTorus();
         updateCameraPosition();
-        updateCameraTarget();
+        // updateCameraTarget();
 
         // renderer.render(scene, camera);
 
@@ -705,7 +705,7 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
 
         renderer.render(scene, camera);
 
-        container.style = `display: block; color: #FFF; font-size: 24px; text-align: center; background-color: #000; height: 100vh; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
+        container.style = `display: inline-block; color: #FFF; font-size: 24px; text-align: center; background-color: #000; height: 100vh; min-width: ${previewWindow.width / 2}px; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
         container.innerHTML = "Reload page";
     });
 
