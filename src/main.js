@@ -255,10 +255,47 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
     // Portal code from:
     //   https://medium.com/@petercoolen/breaking-down-the-portal-effect-how-to-create-an-immersive-ar-experience-9654aa882c13
 
+    const ctx = document.createElement('canvas').getContext('2d');
+    const DOMURL = window.URL || window.webkitURL || window;
+    const img = new Image();
+    const texture = new THREE.CanvasTexture(ctx.canvas);
+
+    ctx.canvas.width = previewWindow.width;
+    ctx.canvas.height = previewWindow.height;
+    ctx.fillStyle = "transparent";
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+    function randInt(min, max) {
+        if (max === undefined) {
+            max = min;
+            min = 0;
+        }
+        return Math.random() * (max - min) + min | 0;
+    }
+
+    function drawRandomDot() {
+        ctx.strokeStyle = `#${randInt(0x1000000).toString(16).padStart(6, '0')}`;
+        ctx.fillStyle = `#${randInt(0x1000000).toString(16).padStart(6, '0')}`;
+        ctx.beginPath();
+
+        const x = randInt(ctx.canvas.width);
+        const y = randInt(ctx.canvas.height);
+        const radius = randInt(10, 64);
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fill();
+    }
+
+    for (let i = 0; i < 1000; i++) {
+        drawRandomDot();
+    }
+
     function createPortal(size) {
         const geometry = new THREE.PlaneGeometry(size, size);
         const material = new THREE.MeshBasicMaterial({ // new THREE.ShaderMaterial({
-            map: renderTarget.texture,
+            // map: renderTarget.texture,
+            map: texture,
+            opacity: 1.0,
             side: THREE.DoubleSide,
             // uniforms: uniforms,
             // vertexShader: defaultVertexShader,
@@ -295,16 +332,16 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
     }
 
     const portalRadialBounds = 1.0; // relative to portal size
-    function testPortalBounds() {
-        // This has no effect in WebXR
-        const isOutside = camera.position.z > 0;
-        const distance = portalMesh.position.distanceTo(camera.position);
-        const withinPortalBounds = distance < portalRadialBounds;
-        if (wasOutside !== isOutside && withinPortalBounds) {
-            isInsidePortal = !isOutside;
-        }
-        wasOutside = isOutside;
-    }
+    // function testPortalBounds() {
+    //     // This has no effect in WebXR
+    //     const isOutside = camera.position.z > 0;
+    //     const distance = portalMesh.position.distanceTo(camera.position);
+    //     const withinPortalBounds = distance < portalRadialBounds;
+    //     if (wasOutside !== isOutside && withinPortalBounds) {
+    //         isInsidePortal = !isOutside;
+    //     }
+    //     wasOutside = isOutside;
+    // }
 
     const portalMesh = createPortal(portalRadialBounds * 2);
     portalMesh.position.set(0, 1.2, 0);
@@ -342,7 +379,7 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
             camera.layers.enable(mapLayers.get("inside"));
         }
 
-        renderer.setRenderTarget(renderTarget);
+        // renderer.setRenderTarget(renderTarget);
         renderer.render(scene, camera);
     }
 
@@ -366,7 +403,7 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
             camera.layers.enable(mapLayers.get("outside"));
         }
 
-        renderer.setRenderTarget(null);
+        // renderer.setRenderTarget(null);
         renderer.render(scene, camera);
     }
 
@@ -516,7 +553,7 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
 
         const sceneMeshStack = updateScene(currentSession, delta, time, (data.hasOwnProperty("action")) ? data : null, null, isInsidePortal, globalPlaneInside, globalPlaneOutside);
 
-        testPortalBounds();
+        // testPortalBounds();
 
         // updateTorus();
         updateCameraPosition();
