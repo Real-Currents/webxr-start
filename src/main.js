@@ -198,11 +198,13 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
     // are hardcoded directional vectors) have to be swapped for WebXR; I don't know why...
     const portalCanvas = document.createElement('canvas');
     document.body.append(portalCanvas);
-    const ctx = portalCanvas.getContext("webgl2"); //.getContext('2d');
+    const ctx = portalCanvas
+        // .getContext('2d');
+        .getContext("webgl2");
     const texture = new THREE.CanvasTexture(portalCanvas);
 
-    ctx.canvas.width = previewWindow.width;
-    ctx.canvas.height = previewWindow.height;
+    ctx.canvas.width = window.innerWidth;
+    ctx.canvas.height = window.innerHeight;
 
     // ctx.fillStyle = "transparent";
     // ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -232,7 +234,10 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
     //     drawRandomDot();
     // }
 
-    const portalRenderer = new THREE.WebGLRenderer({ canvas: portalCanvas, antialias: true });
+    const portalRenderer = new THREE.WebGLRenderer({
+        antialias: true,
+        canvas: portalCanvas,
+    });
     portalRenderer.setPixelRatio(window.devicePixelRatio);
     portalRenderer.setSize(previewWindow.width, previewWindow.height);
     portalRenderer.xr.enabled = false;
@@ -241,8 +246,8 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
     function createPortal(size) {
         const geometry = new THREE.PlaneGeometry(size, size);
         const material = new THREE.MeshBasicMaterial({ // new THREE.ShaderMaterial({
-            map: portalRenderTarget.texture || texture,
-            // map: texture,
+            // map: portalRenderTarget.texture || texture,
+            map: texture,
             opacity: 1.0,
             side: THREE.DoubleSide,
             // uniforms: {
@@ -257,36 +262,37 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
             // vertexShader: defaultVertexShader,
             // fragmentShader: portalFragmentShader,
         });
-        material.onBeforeCompile = (shader) => {
-            shader.uniforms.uResolution = new THREE.Uniform(resolution);
 
-            shader.vertexShader = defaultVertexShader;
+//         material.onBeforeCompile = (shader) => {
+//             shader.uniforms.uResolution = new THREE.Uniform(resolution);
+//
+//             shader.vertexShader = defaultVertexShader;
+//
+//             console.log("VertexShader:\n" + shader.vertexShader);
+//
+//             shader.fragmentShader = `
+//     uniform vec2 uResolution;
+// ` + shader.fragmentShader;
+//
+//             shader.fragmentShader = shader.fragmentShader.replace(
+//                 "#include <map_fragment>", `
+//     vec2 pos = gl_FragCoord.xy/uResolution;
+//     vec4 sampledDiffuseColor = texture2D( map, pos );
+//     diffuseColor *= sampledDiffuseColor;
+// `);
+//
+//             shader.fragmentShader = shader.fragmentShader.replace(
+//                 "#include <dithering_fragment>",
+//                 "#include <dithering_fragment>" + `
+//     // gl_FragColor = vec4(1, 0, 0, 1);
+//     // gl_FragColor = vec4(vNormal * 0.5 + 0.5, 1);
+//     // gl_FragColor = diffuseColor;
+//     gl_FragColor = diffuseColor * vec4(vNormal * 0.5 + 0.5, 1);
+// `);
+//             console.log("FragmentShader:\n" + shader.fragmentShader);
+//         };
 
-            console.log("VertexShader:\n" + shader.vertexShader);
-
-            shader.fragmentShader = `
-    uniform vec2 uResolution;
-` + shader.fragmentShader;
-
-            shader.fragmentShader = shader.fragmentShader.replace(
-                "#include <map_fragment>", `
-    vec2 pos = gl_FragCoord.xy/uResolution;
-    vec4 sampledDiffuseColor = texture2D( map, pos );
-    diffuseColor *= sampledDiffuseColor;
-`);
-
-            shader.fragmentShader = shader.fragmentShader.replace(
-                "#include <dithering_fragment>",
-                "#include <dithering_fragment>" + `
-    // gl_FragColor = vec4(1, 0, 0, 1);
-    // gl_FragColor = vec4(vNormal * 0.5 + 0.5, 1);
-    gl_FragColor = diffuseColor * vec4(vNormal * 0.5 + 0.5, 1);
-    // gl_FragColor = diffuseColor;
-`);
-            console.log("FragmentShader:\n" + shader.fragmentShader);
-        };
-
-        geometry.rotateY(-Math.PI);
+        // geometry.rotateY(-Math.PI);
 
         return new THREE.Mesh(geometry, material);
     }
@@ -296,7 +302,7 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
     const portalMesh = createPortal(portalRadialBounds * 2);
     portalMesh.position.set(0, 1.2, 0);
     setLayer(portalMesh, mapLayers.get("portal"));
-    // sceneContainer.add(portalMesh);
+    sceneContainer.add(portalMesh);
 
     const environment = new RoomEnvironment(renderer);
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
