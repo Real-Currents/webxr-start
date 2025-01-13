@@ -9,6 +9,9 @@ import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFa
 
 import setupScene from "./setup/setupScene";
 
+import defaultVertexShader from './shaders/default/vertexShader.glsl';
+import defaultFragmentShader from './shaders/default/fragmentShader.glsl';
+
 let currentSession;
 
 const clock = new THREE.Clock();
@@ -21,7 +24,29 @@ const controllers = {
 
 let waiting_for_confirmation = false;
 
-async function initScene (setup = (scene, camera, controllers, players) => {}) {
+// Setup clipping planes
+const globalPlaneInside = [new THREE.Plane(new THREE.Vector3(0, 0, -1), 0)];
+const globalPlaneOutside = [new THREE.Plane(new THREE.Vector3(0, 0, 1), 0)];
+
+let isInsidePortal = true; // false;
+
+const sceneContainer = new THREE.Group();
+
+const mapLayers = new Map();
+mapLayers.set("inside", 1);
+mapLayers.set("outside", 2);
+mapLayers.set("portal", 3);
+
+// Helper function to set nested meshes to layers
+// https://github.com/mrdoob/three.js/issues/10959
+function setLayer(object, layer) {
+    object.layers.set(layer);
+    object.traverse(function (child) {
+        child.layers.set(layer);
+    });
+}
+
+async function initScene (setup = (scene, camera, controllers, players, mapLayers, setLayer) => {}) {
 
     // iwer setup
     let nativeWebXRSupport = false;
@@ -56,6 +81,9 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
     }
 
+    const player = new THREE.Group();
+    scene.add(player);
+
     const previewWindow = {
         width: window.innerWidth, // / 2, // 640,
         height: window.innerHeight + 10, // 480,
@@ -68,13 +96,47 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
     console.log(container);
 
-    const canvas= window.document.createElement('canvas');
 
-    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    // Adaptation of portal example from
+    //   [Breaking Down the Portal Effect: How to Create an Immersive AR Experience](https://medium.com/@petercoolen/breaking-down-the-portal-effect-how-to-create-an-immersive-ar-experience-9654aa882c13)
+    //   Code: https://codepen.io/Qubica/pen/bGjRLXP
+    // ... BUT, one thing that is very different is that the "inside"/"outside" boundaries, which
+    // are hardcoded directional vectors) have to be swapped for WebXR; I don't know why...
+    const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        // canvas: canvas,
+        // context: renderContext
+    });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(previewWindow.width, previewWindow.height);
     renderer.xr.enabled = true;
+    renderer.localClippingEnabled = true;
+
+    const renderTarget = renderer.getRenderTarget();
+
+    console.log(renderTarget);
+
     container.appendChild(renderer.domElement);
+
+    function resizeRenderer(width, height) {
+        renderer.setSize(width, height);
+    }
+
+    const portalCanvas = window.document.createElement('canvas');
+    const portalContext = portalCanvas.getContext("webgl2");
+    const portalRenderer = new THREE.WebGLRenderer({
+        antialias: true,
+        canvas: portalCanvas,
+        context: portalContext
+    });
+    const portalRenderTarget = new THREE.WebGLRenderTarget(1, 1);
+    portalRenderer.localClippingEnabled = true;
+
+    function resizePortalRenderTarget(width, height) {
+        portalRenderTarget.setSize(width, height);
+    }
+
+    const resolution = new THREE.Vector2();
 
     const camera = new THREE.PerspectiveCamera(
         50,
@@ -84,8 +146,15 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     );
     camera.position.set(0, 1.6, 3);
 
-    const controls = new OrbitControls(camera, container);
-    controls.target.set(0, 1.6, 0);
+    // const controls = new OrbitControls(camera, container);
+    // controls.target.set(0, 1.6, 0);
+    // controls.update();
+
+    const cameraLookAtTarget = new THREE.Vector3(0, 0.5, 0);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    // controls.enableZoom = false;
+    // controls.enablePan = false;
+    controls.target = cameraLookAtTarget;
     controls.update();
 
     console.log(renderer.domElement);
@@ -100,13 +169,6 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     }
 
     window.addEventListener('resize', onWindowResize);
-
-    const environment = new RoomEnvironment(renderer);
-    const pmremGenerator = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmremGenerator.fromScene(environment).texture;
-
-    const player = new THREE.Group();
-    scene.add(player);
 
     for (let i = 0; i < 2; i++) {
         const raySpace = renderer.xr.getController(i);
@@ -140,7 +202,126 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         // gripSpace.visible = false;
     }
 
-    const updateScene = setup(scene, camera, controllers, player);
+    // Portal code from:
+    //   https://medium.com/@petercoolen/breaking-down-the-portal-effect-how-to-create-an-immersive-ar-experience-9654aa882c13
+    function createPortal(size) {
+        const geometry = new THREE.PlaneGeometry(size, size);
+        const material = new THREE.MeshBasicMaterial({
+          // new THREE.ShaderMaterial({
+            map: portalRenderTarget.texture,
+            side: THREE.DoubleSide,
+            // uniforms: {
+            //     ...THREE.ShaderLib.physical.uniforms,
+            //     diffuse: { value: { "r": 0.36, "g": 0.51, "b": 0.65 } },
+            //     roughness: { value: 0.5 },
+            //     amplitude: { value: 0.25},
+            //     frequency: { value: 0.5 },
+            //     speed: { value: 0.3 },
+            //     time: { value: 1.0 }
+            // },
+            // vertexShader: defaultVertexShader,
+            // fragmentShader: defaultFragmentShader,
+        });
+        material.onBeforeCompile = (shader) => {
+            shader.uniforms.uResolution = new THREE.Uniform(resolution);
+
+            shader.vertexShader = defaultVertexShader;
+
+            shader.fragmentShader = `
+    uniform vec2 uResolution;
+` + shader.fragmentShader;
+
+            shader.fragmentShader = shader.fragmentShader.replace(
+                "#include <map_fragment>", `
+    vec2 pos = gl_FragCoord.xy/uResolution;
+    vec4 sampledDiffuseColor = texture2D( map, pos );
+    diffuseColor *= sampledDiffuseColor;
+`);
+
+            shader.fragmentShader = shader.fragmentShader.replace(
+                "#include <dithering_fragment>",
+                "#include <dithering_fragment>" + `
+    // gl_FragColor = vec4(1, 0, 0, 1);
+    // gl_FragColor = vec4(vNormal * 0.5 + 0.5, 1);
+    gl_FragColor = diffuseColor * vec4(vNormal * 0.5 + 0.5, 1);
+    // gl_FragColor = diffuseColor;
+`);
+            console.log("FragmentShader:\n" + shader.fragmentShader);
+        };
+        return new THREE.Mesh(geometry, material);
+    }
+
+    const portalRadialBounds = 1.0; // relative to portal size
+
+    const portalMesh = createPortal(portalRadialBounds * 2);
+    portalMesh.position.set(0, 1.2, 0);
+    setLayer(portalMesh, mapLayers.get("portal"));
+    // scene.add(portalMesh);
+    sceneContainer.add(portalMesh);
+
+    const environment = new RoomEnvironment(renderer);
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmremGenerator.fromScene(environment).texture; // <= light + texture for quest controllers
+
+    const updateScene = await setup(sceneContainer, camera, controllers, player, mapLayers, setLayer);
+
+    // sceneContainer.rotateY(-Math.PI);
+    scene.add(sceneContainer);
+
+
+    function renderPortal (sceneObjects) {
+        portalRenderer.clippingPlanes = isInsidePortal
+            ? globalPlaneInside
+            : globalPlaneOutside;
+
+        sceneObjects.forEach(m => {
+            if (m.hasOwnProperty("material") && m.material.hasOwnProperty("clippingPlanes")) {
+                m.material.clippingPlanes = isInsidePortal
+                    ? globalPlaneInside
+                    : globalPlaneOutside;
+            }
+        });
+
+        camera.layers.disable(mapLayers.get("portal"));
+        if (isInsidePortal) {
+            camera.layers.disable(mapLayers.get("inside"));
+            camera.layers.enable(mapLayers.get("outside"));
+        } else {
+            camera.layers.disable(mapLayers.get("outside"));
+            camera.layers.enable(mapLayers.get("inside"));
+        }
+
+        portalRenderer.setRenderTarget(portalRenderTarget);
+        portalRenderer.clear();
+        portalRenderer.render(scene, camera);
+    }
+
+    function renderWorld (sceneObjects) {
+        renderer.clippingPlanes = [];
+
+        sceneObjects.forEach(m => {
+            if (m.hasOwnProperty("material") && m.material.hasOwnProperty("clippingPlanes")) {
+                m.material.clippingPlanes = isInsidePortal
+                    ? globalPlaneOutside
+                    : globalPlaneInside;
+            }
+        });
+
+        portalMesh.material.side = isInsidePortal ? THREE.BackSide : THREE.FrontSide;
+
+        camera.layers.enable(mapLayers.get("portal"));
+        if (isInsidePortal) {
+            camera.layers.disable(mapLayers.get("outside"));
+            camera.layers.enable(mapLayers.get("inside"));
+        } else {
+            camera.layers.disable(mapLayers.get("inside"));
+            camera.layers.enable(mapLayers.get("outside"));
+        }
+
+        renderer.clear();
+        renderer.render(scene, camera);
+    }
+
 
     renderer.setAnimationLoop(() => {
         const delta = clock.getDelta();
@@ -150,8 +331,12 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
                 controller.gamepad.update();
             }
         });
-        
-        const data = {};
+
+        const data = {
+            isInsidePortal,
+            globalPlaneInside,
+            globalPlaneOutside
+        };
 
         if (controllers.hasOwnProperty("right") && controllers.right !== null) {
 
@@ -281,9 +466,11 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
             }
         }
         
-        updateScene(currentSession, delta, time, data, null);
+        const scene_objects = updateScene(currentSession, delta, time, data, null);
 
-        renderer.render(scene, camera);
+        // renderer.render(scene, camera);
+        renderPortal(scene_objects);
+        renderWorld(scene_objects);
     });
 
     function startXR() {

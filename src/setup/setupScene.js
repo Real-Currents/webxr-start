@@ -11,16 +11,12 @@ mapColors.set("orangeDark", new THREE.Color(0xfbb282));
 mapColors.set("green", new THREE.Color(0xc8d3cb));
 mapColors.set("blue", new THREE.Color(0xbbd1de));
 
-const sceneMeshStack = [];
+const sceneObjects = [];
 
 export default function setupScene (scene, camera, controllers, player, mapLayers, setLayer) {
 
     // Set player view
     player.add(camera);
-
-    // Place objects
-    scene.add(plane);
-    scene.add(rotatingCube);
 
 // // Setup World
 //     function createPlane(width, height, color) {
@@ -60,38 +56,38 @@ export default function setupScene (scene, camera, controllers, player, mapLayer
 
 //     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
 //     directionalLight.position.set(0, 1, 1);
-//     scene.add(directionalLight);
+//     sceneObjects.push(directionalLight);
 //
 //     const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 1);
-//     scene.add(hemisphereLight);
+//     sceneObjects.push(hemisphereLight);
 //
 //     const skyOutsideMesh = createSphere(mapColors.get("blue"));
 //     // setLayer(skyOutsideMesh, mapLayers.get("outside"));
-//     sceneMeshStack.push(skyOutsideMesh);
+//     sceneObjects.push(skyOutsideMesh);
 //
 //     const groundInsideMesh = createPlane(4, 4, mapColors.get("orangeLight"));
 //     groundInsideMesh.rotation.set(-Math.PI * 0.5, 0, 0);
 //     // setLayer(groundInsideMesh, mapLayers.get("outside"));
-//     scene.add(groundInsideMesh);
+//     sceneObjects.push(groundInsideMesh);
 //
 //     const boxMesh = createBox(0.2, 1, 0.2, mapColors.get("green"));
 //     boxMesh.position.set(0, 0, -0.3);
 //     // setLayer(boxMesh, mapLayers.get("outside"));
-//     scene.add(boxMesh);
+//     sceneObjects.push(boxMesh);
 //
 //     const boxMesh2 = createBox(0.2, 0.2, 0.2, mapColors.get("green"));
 //     boxMesh2.position.set(-0.4, 0, 0.2);
 //     // setLayer(boxMesh2, mapLayers.get("outside"));
-//     scene.add(boxMesh2);
+//     sceneObjects.push(boxMesh2);
 //
 //     const boxMesh3 = createBox(0.2, 0.15, 0.2, mapColors.get("green"));
 //     boxMesh3.position.set(0.4, 0, 0.2);
 //     // setLayer(boxMesh3, mapLayers.get("outside"));
-//     scene.add(boxMesh3);
+//     sceneObjects.push(boxMesh3);
 
     const torusMesh = createTorus(mapColors.get("grey"));
     torusMesh.position.set(0, 1, 0);
-    sceneMeshStack.push(torusMesh);
+    sceneObjects.push(torusMesh);
 
     function updateTorus() {
         torusMesh.rotation.x += 0.01;
@@ -99,11 +95,12 @@ export default function setupScene (scene, camera, controllers, player, mapLayer
     }
 
     // Place other objects
+    sceneObjects.push(plane);
+    sceneObjects.push(rotatingCube);
     rotatingCube.position.y = 1;
-    // setLayer(rotatingCube, mapLayers.get("outside"));
-    sceneMeshStack.push(rotatingCube)
+    setLayer(rotatingCube, mapLayers.get("outside"));
     
-    sceneMeshStack.forEach(m => scene.add(m));
+    sceneObjects.forEach(m => scene.add(m));
 
     return function (currentSession, delta, time, data_in, sendData_out) {
         const data_out = {};
@@ -125,6 +122,6 @@ export default function setupScene (scene, camera, controllers, player, mapLayer
             sendData_out(data_out);
         }
         
-        return sceneMeshStack;
+        return sceneObjects;
     }
 }
