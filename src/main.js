@@ -156,6 +156,14 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
         renderTarget.setSize(width, height);
     }
 
+    const portalRenderTarget = new THREE.WebGLRenderTarget(1, 1);
+
+    function resizePortalRenderTarget(width, height) {
+        portalRenderTarget.setSize(width, height);
+    }
+
+    resizePortalRenderTarget(previewWindow.width, previewWindow.height);
+
     const resolution = new THREE.Vector2();
 
     const camera = new THREE.PerspectiveCamera(
@@ -254,11 +262,27 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
 
     // Portal code from:
     //   https://medium.com/@petercoolen/breaking-down-the-portal-effect-how-to-create-an-immersive-ar-experience-9654aa882c13
+    // const portalCanvas = document.createElement('canvas');
+    // document.body.prepend(portalCanvas);
+    // const ctx = portalCanvas.getContext("webgl2"); //.getContext('2d');
+    // const texture = new THREE.CanvasTexture(portalCanvas);
+    //
+    // ctx.canvas.width = previewWindow.width;
+    // ctx.canvas.height = previewWindow.height;
+
+    const portalRenderer = new THREE.WebGLRenderer({ antialias: true });
+    portalRenderer.setPixelRatio(window.devicePixelRatio);
+    portalRenderer.setSize(previewWindow.width, previewWindow.height);
+    portalRenderer.xr.enabled = false;
+    portalRenderer.localClippingEnabled = true;
+    document.body.appendChild(portalRenderer.domElement);
 
     function createPortal(size) {
         const geometry = new THREE.PlaneGeometry(size, size);
         const material = new THREE.MeshBasicMaterial({ // new THREE.ShaderMaterial({
-            map: renderTarget.texture,
+            // map: renderTarget.texture,
+            map: portalRenderTarget.texture,
+            // map: texture;
             side: THREE.DoubleSide,
             // uniforms: uniforms,
             // vertexShader: defaultVertexShader,
@@ -268,6 +292,8 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
             shader.uniforms.uResolution = new THREE.Uniform(resolution);
 
             shader.vertexShader = defaultVertexShader;
+
+            console.log("VertexShader:\n" + shader.vertexShader);
 
             shader.fragmentShader = `
     uniform vec2 uResolution;
@@ -312,6 +338,8 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
     // scene.add(portalMesh);
     sceneContainer.add(portalMesh);
 
+    new RoomEnvironment(portalRenderer);
+    new THREE.PMREMGenerator(portalRenderer);
     const environment = new RoomEnvironment(renderer);
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     // scene.environment = pmremGenerator.fromScene(environment).texture; <= ???
@@ -342,7 +370,12 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
             camera.layers.enable(mapLayers.get("inside"));
         }
 
-        renderer.setRenderTarget(renderTarget);
+
+        portalRenderer.setRenderTarget(portalRenderTarget);
+        portalRenderer.clear();
+        portalRenderer.render(scene, camera);
+        renderer.setRenderTarget(portalRenderTarget);
+        renderer.clear();
         renderer.render(scene, camera);
     }
 
@@ -366,6 +399,8 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
             camera.layers.enable(mapLayers.get("outside"));
         }
 
+        portalRenderer.setRenderTarget(null);
+        portalRenderer.render(scene, camera);
         renderer.setRenderTarget(null);
         renderer.render(scene, camera);
     }
