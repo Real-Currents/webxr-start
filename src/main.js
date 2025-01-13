@@ -25,8 +25,8 @@ const controllers = {
 let waiting_for_confirmation = false;
 
 // Setup clipping planes
-const globalPlaneInside = [new THREE.Plane(new THREE.Vector3(0, 0, -1), 0)];
-const globalPlaneOutside = [new THREE.Plane(new THREE.Vector3(0, 0, 1), 0)];
+const globalPlaneInside = [new THREE.Plane(new THREE.Vector3(0, 0, 1), 0)];
+const globalPlaneOutside = [new THREE.Plane(new THREE.Vector3(0, 0, -1), 0)];
 
 let isInsidePortal = true; // false;
 
@@ -85,13 +85,13 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
     scene.add(player);
 
     const previewWindow = {
-        width: window.innerWidth, // / 2, // 640,
+        width: window.innerWidth / 2, // 640,
         height: window.innerHeight + 10, // 480,
     };
 
     const body = document.body,
         container = document.createElement('div');
-    container.style = `display: block; background-color: #000; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
+    container.style = `display: inline-block; background-color: #000; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
     body.appendChild(container);
 
     console.log(container);
@@ -197,7 +197,7 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
     // ... BUT, one thing that is very different is that the "inside"/"outside" boundaries, which
     // are hardcoded directional vectors) have to be swapped for WebXR; I don't know why...
     const portalCanvas = document.createElement('canvas');
-    document.body.prepend(portalCanvas);
+    document.body.append(portalCanvas);
     const ctx = portalCanvas.getContext("webgl2"); //.getContext('2d');
     const texture = new THREE.CanvasTexture(portalCanvas);
 
@@ -241,7 +241,7 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
     function createPortal(size) {
         const geometry = new THREE.PlaneGeometry(size, size);
         const material = new THREE.MeshBasicMaterial({ // new THREE.ShaderMaterial({
-            map: portalRenderTarget.texture,
+            map: portalRenderTarget.texture || texture,
             // map: texture,
             opacity: 1.0,
             side: THREE.DoubleSide,
@@ -285,6 +285,9 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
 `);
             console.log("FragmentShader:\n" + shader.fragmentShader);
         };
+
+        geometry.rotateY(-Math.PI);
+
         return new THREE.Mesh(geometry, material);
     }
 
@@ -293,8 +296,7 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
     const portalMesh = createPortal(portalRadialBounds * 2);
     portalMesh.position.set(0, 1.2, 0);
     setLayer(portalMesh, mapLayers.get("portal"));
-    // scene.add(portalMesh);
-    sceneContainer.add(portalMesh);
+    // sceneContainer.add(portalMesh);
 
     const environment = new RoomEnvironment(renderer);
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -302,9 +304,7 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
 
     const updateScene = await setup(sceneContainer, camera, controllers, player, mapLayers, setLayer);
 
-    // sceneContainer.rotateY(-Math.PI);
     scene.add(sceneContainer);
-
 
     function renderPortal (sceneObjects) {
         // portalRenderer.clippingPlanes = isInsidePortal
@@ -335,36 +335,41 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
         portalRenderer.clear();
         portalRenderer.render(scene, camera);
         // renderer.xr.enabled = false;
-        // renderer.localClippingEnabled = false;
         // renderer.setRenderTarget(portalRenderTarget);
         // renderer.clear();
         // renderer.render(scene, camera);
     }
 
     function renderWorld (sceneObjects) {
-        // renderer.clippingPlanes = [];
-        //
-        // sceneObjects.forEach(m => {
-        //     if (m.hasOwnProperty("material") && m.material.hasOwnProperty("clippingPlanes")) {
-        //         m.material.clippingPlanes = isInsidePortal
-        //             ? globalPlaneOutside
-        //             : globalPlaneInside;
-        //     }
-        // });
-        //
-        // portalMesh.material.side = isInsidePortal ? THREE.BackSide : THREE.FrontSide;
+        renderer.clippingPlanes = [];
+
+        sceneObjects.forEach(m => {
+            if (m.hasOwnProperty("material") && m.material.hasOwnProperty("clippingPlanes")) {
+                m.material.clippingPlanes = isInsidePortal
+                    ? globalPlaneOutside
+                    : globalPlaneInside;
+            }
+        });
+
+        portalMesh.material.side = isInsidePortal ? THREE.BackSide : THREE.FrontSide;
 
         camera.layers.enable(mapLayers.get("portal"));
-        if (isInsidePortal) {
-            camera.layers.disable(mapLayers.get("outside"));
+        // if (isInsidePortal) {
+        //     camera.layers.disable(mapLayers.get("outside"));
             camera.layers.enable(mapLayers.get("inside"));
-        } else {
-            camera.layers.disable(mapLayers.get("inside"));
-            camera.layers.enable(mapLayers.get("outside"));
-        }
+        // } else {
+        //     camera.layers.disable(mapLayers.get("inside"));
+        //     camera.layers.enable(mapLayers.get("outside"));
+        // }
 
-        renderer.setRenderTarget(null);
-        // renderer.clear();
+        // portalRenderer.setRenderTarget(null);
+        // portalRenderer.clear();
+        // portalRenderer.render(scene, camera);
+        // renderer.xr.enabled = true;
+        // renderer.setRenderTarget(null); // <= Does not work in WebXR!
+        // renderer.setRenderTarget(renderTarget); // <= Does not work in WebXR!
+        // renderer.setRenderTarget(renderer.getRenderTarget());  // <= Does not work in WebXR!
+        renderer.clear();
         renderer.render(scene, camera);
     }
 
@@ -615,7 +620,7 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
 
         renderer.render(scene, camera);
 
-        container.style = `display: block; color: #FFF; font-size: 24px; text-align: center; background-color: #000; height: 100vh; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
+        container.style = `display: inline-block; color: #FFF; font-size: 24px; text-align: center; background-color: #000; height: 100vh; min-width: ${previewWindow.width / 2}px; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
         container.innerHTML = "Reload page";
     });
 
