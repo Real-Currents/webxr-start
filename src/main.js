@@ -292,7 +292,7 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
 //             console.log("FragmentShader:\n" + shader.fragmentShader);
 //         };
 
-        // geometry.rotateY(-Math.PI);
+        geometry.rotateY(-Math.PI);
 
         return new THREE.Mesh(geometry, material);
     }
@@ -337,9 +337,9 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
         portalRenderer.setRenderTarget(null);
         portalRenderer.render(scene, camera);
         texture.needsUpdate = true;
-        portalRenderer.setRenderTarget(portalRenderTarget);
-        portalRenderer.clear();
-        portalRenderer.render(scene, camera);
+        // portalRenderer.setRenderTarget(portalRenderTarget);
+        // portalRenderer.clear();
+        // portalRenderer.render(scene, camera);
         // renderer.xr.enabled = false;
         // renderer.setRenderTarget(portalRenderTarget);
         // renderer.clear();
