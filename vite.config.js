@@ -1,8 +1,10 @@
 import { NodeGlobalsPolyfillPlugin } from "@esbuild-plugins/node-globals-polyfill";
 import { NodeModulesPolyfillPlugin } from "@esbuild-plugins/node-modules-polyfill";
 import basicSsl from "@vitejs/plugin-basic-ssl";
+import shader from 'rollup-plugin-shader';
 
 export default {
+    base: "",
     define: {
        // "process.env.MapboxAccessToken": JSON.stringify(process.env.MapboxAccessToken)
     },
@@ -41,5 +43,16 @@ export default {
             // /** custom certification directory */
             // certDir: '/Users/.../.devServer/cert'
         }),
+        shader({
+            // All match files will be parsed by default,
+            // but you can also specifically include/exclude files
+            include: [
+                '**/*.glsl',
+                '**/*.vs',
+                '**/*.fs'
+            ],
+            // specify whether to remove comments
+            removeComments: true,   // default: true
+        })
     ]
 };

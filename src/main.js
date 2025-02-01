@@ -3,27 +3,26 @@ import * as THREE from "three";
 import { XRDevice, metaQuest3 } from 'iwer';
 import { DevUI } from '@iwer/devui';
 import { GamepadWrapper, XR_BUTTONS } from 'gamepad-wrapper';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
+import { OrbitControls } from 'three/addons/controls/OrbitControls';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment';
+import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory";
 
 import loadManager from "./loadManager";
 import setupScene from "./setup/setupScene";
 
-
 let currentSession;
-
-const clock = new THREE.Clock();
-const scene = new THREE.Scene();
-const controllerModelFactory = new XRControllerModelFactory();
-const controllers = {
-    left: null,
-    right: null,
-};
 
 let waiting_for_confirmation = false;
 
 async function initScene (setup = (scene, camera, controllers, players) => {}) {
+
+    const clock = new THREE.Clock();
+    const scene = new THREE.Scene();
+    const controllerModelFactory = new XRControllerModelFactory();
+    const controllers = {
+        left: null,
+        right: null,
+    };
 
     // iwer setup
     let nativeWebXRSupport = false;
