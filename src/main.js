@@ -7,6 +7,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment';
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory";
 
+import { HTMLMesh } from 'three/addons/interactive/HTMLMesh.js';
+import Stats from "https://unpkg.com/three@0.118.3/examples/jsm/libs/stats.module.js";
+
 import loadManager from "./loadManager";
 import setupScene from "./setup/setupScene";
 
@@ -68,6 +71,23 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     body.appendChild(container);
 
     console.log(container);
+
+    // Setup Stats
+    const stats = new Stats();
+    stats.showPanel(0);
+    stats.dom.style.maxWidth = "100px";
+    stats.dom.style.minWidth = "100px";
+    stats.dom.style.backgroundColor = "black";
+    document.body.appendChild(stats.dom);
+
+    const statsMesh = new HTMLMesh( stats.dom );
+    statsMesh.position.x = -1.5;
+    statsMesh.position.y = 2;
+    statsMesh.position.z = -0.5;
+    statsMesh.rotation.y = Math.PI / 4;
+    statsMesh.scale.setScalar(8);
+
+    scene.add(statsMesh);
 
     const canvas= window.document.createElement('canvas');
 
@@ -140,8 +160,6 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         // raySpace.visible = false;
         // gripSpace.visible = false;
     }
-
-
 
     function startXR() {
         const sessionInit = {
@@ -262,6 +280,8 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
                 const sceneDataUpdate = {};
 
+                stats.begin();
+
                 if (controllers.hasOwnProperty("right") && controllers.right !== null) {
 
                     const {gamepad, raySpace} = controllers.right;
@@ -314,6 +334,9 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
                 updateScene(currentSession, delta, time, (Object.keys(sceneDataUpdate).length > 0) ? sceneDataUpdate : null);
 
                 renderer.render(scene, camera);
+
+                stats.end();
+                statsMesh.material.map.update();
             });
 
             container.appendChild(xr_button);
