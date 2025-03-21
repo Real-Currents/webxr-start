@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import { XRDevice, metaQuest3 } from 'iwer';
+import {XRDevice, metaQuest3, XRWebGLLayer} from 'iwer';
 import { DevUI } from '@iwer/devui';
 import { GamepadWrapper, XR_BUTTONS } from 'gamepad-wrapper';
 import { OrbitControls } from 'three/addons/controls/OrbitControls';
@@ -74,11 +74,12 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         right: null,
     };
 
-    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(previewWindow.width, previewWindow.height);
-    renderer.xr.enabled = true;
-    container.appendChild(renderer.domElement);
+    // const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    // renderer.autoClear = false;
+    // renderer.setPixelRatio(window.devicePixelRatio);
+    // renderer.setSize(previewWindow.width, previewWindow.height);
+    // renderer.xr.enabled = true;
+    // container.appendChild(renderer.domElement);
 
     // Setup Stats
     const stats = new Stats();
@@ -109,7 +110,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         camera.aspect = previewWindow.width / previewWindow.height;
         camera.updateProjectionMatrix();
 
-        renderer.setSize(previewWindow.width, previewWindow.height);
+        // renderer.setSize(previewWindow.width, previewWindow.height);
     }
 
     window.addEventListener('resize', onWindowResize);
@@ -118,44 +119,44 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     controls.target.set(0, 1.6, 0);
     controls.update();
 
-    const environment = new RoomEnvironment(renderer);
-    const pmremGenerator = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmremGenerator.fromScene(environment).texture;
+    // const environment = new RoomEnvironment(renderer);
+    // const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    // scene.environment = pmremGenerator.fromScene(environment).texture;
 
     const player = new THREE.Group();
     scene.add(player);
 
-    for (let i = 0; i < 2; i++) {
-        const raySpace = renderer.xr.getController(i);
-        const gripSpace = renderer.xr.getControllerGrip(i);
-        const mesh = controllerModelFactory.createControllerModel(gripSpace);
-
-        gripSpace.add(mesh);
-
-        gripSpace.addEventListener('connected', (e) => {
-
-            raySpace.visible = true;
-            gripSpace.visible = true;
-            const handedness = e.data.handedness;
-            controllers[handedness] = {
-                raySpace,
-                gripSpace,
-                mesh,
-                gamepad: new GamepadWrapper(e.data.gamepad),
-            };
-        });
-
-        gripSpace.addEventListener('disconnected', (e) => {
-            raySpace.visible = false;
-            gripSpace.visible = false;
-            const handedness = e.data.handedness;
-            controllers[handedness] = null;
-        });
-
-        player.add(raySpace, gripSpace);
-        // raySpace.visible = false;
-        // gripSpace.visible = false;
-    }
+    // for (let i = 0; i < 2; i++) {
+    //     const raySpace = renderer.xr.getController(i);
+    //     const gripSpace = renderer.xr.getControllerGrip(i);
+    //     const mesh = controllerModelFactory.createControllerModel(gripSpace);
+    //
+    //     gripSpace.add(mesh);
+    //
+    //     gripSpace.addEventListener('connected', (e) => {
+    //
+    //         raySpace.visible = true;
+    //         gripSpace.visible = true;
+    //         const handedness = e.data.handedness;
+    //         controllers[handedness] = {
+    //             raySpace,
+    //             gripSpace,
+    //             mesh,
+    //             gamepad: new GamepadWrapper(e.data.gamepad),
+    //         };
+    //     });
+    //
+    //     gripSpace.addEventListener('disconnected', (e) => {
+    //         raySpace.visible = false;
+    //         gripSpace.visible = false;
+    //         const handedness = e.data.handedness;
+    //         controllers[handedness] = null;
+    //     });
+    //
+    //     player.add(raySpace, gripSpace);
+    //     // raySpace.visible = false;
+    //     // gripSpace.visible = false;
+    // }
 
     await loadManager.addLoadHandler(async () => {
 
@@ -163,14 +164,9 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
         async function onSessionStarted(xrSession) {
 
-            const delta = clock.getDelta();
-            const time = clock.getElapsedTime();
-
-            const gl = renderer.getContext();
-
             xrSession.addEventListener("end", onSessionEnded);
 
-            await renderer.xr.setSession(xrSession);
+            // await renderer.xr.setSession(xrSession);
 
             currentSession = xrSession;
 
@@ -211,7 +207,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
             previewWindow.width = window.innerWidth;
             previewWindow.height = window.innerHeight;
 
-            renderer.setSize(previewWindow.width, previewWindow.height);
+            // renderer.setSize(previewWindow.width, previewWindow.height);
 
             camera.aspect = previewWindow.width / previewWindow.height;
             camera.updateProjectionMatrix();
@@ -223,29 +219,50 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
             player.position.z = camera.position.z;
             player.position.y = camera.position.y;
 
-            // loadWebGLResources(renderer, scene, xrSession);
+            // const gl = renderer.getContext();
+            const gl = canvas.getContext("webgl", { xrCompatible: true });
 
-            // if (typeof XRWebGLBinding === "function") {
-            //
-            //     const xrGlBinding = new XRWebGLBinding(xrSession, gl);
-            //     const projectionLayer = new XRWebGLLayer(xrSession, gl);
-            //     const quadLayer = xrGlBinding.createQuadLayer({
-            //         pixelWidth: 1024,
-            //         pixelHeight: 1024,
-            //     });
-            //
-            //     xrSession.updateRenderState({
-            //         layers: [ projectionLayer, quadLayer ],
-            //     });
-            //
-            // } else {
+            if (typeof XRMediaBinding === "function") {
 
-                xrSession.updateRenderState({
-                    baseLayer: new XRWebGLLayer(xrSession, gl),
+                // Create an immersive session with layers support.
+                const xrMediaFactory = new XRMediaBinding(xrSession);
+                let video = document.createElement('video');
+                video.src = "video/the_bardos_beyond.mp4"; // url to your video
+
+                let layer = xrMediaFactory.createCylinderLayer(video, {
+                    space: refSpace, layout: "stereo-top-bottom"
                 });
 
-            // }
+                xrSession.updateRenderState({
+                    layers: [ layer ]
+                });
 
+            } else if (typeof XRWebGLBinding === "function") {
+
+                const xrGlBinding = new XRWebGLBinding(xrSession, gl);
+                const projectionLayer = new XRWebGLLayer(xrSession, gl);
+                const quadLayer = xrGlBinding.createQuadLayer({
+                    pixelWidth: 1024,
+                    pixelHeight: 1024,
+                });
+
+                xrSession.updateRenderState({
+                    layers: [ projectionLayer, quadLayer ]
+                });
+
+            } else {
+
+                xrSession.updateRenderState({
+                    baseLayer: new XRWebGLLayer(xrSession, gl)
+                });
+
+            }
+
+            // loadWebGLResources(renderer, scene, xrSession);
+
+            // const delta = clock.getDelta();
+            // const time = clock.getElapsedTime();
+            //
             // const updateScene = await setup(scene, camera, controllers, player);
             //
             // renderer.setAnimationLoop(() => {
