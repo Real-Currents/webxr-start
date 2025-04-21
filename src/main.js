@@ -3,25 +3,28 @@ import * as THREE from "three";
 import { XRDevice, metaQuest3 } from 'iwer';
 import { DevUI } from '@iwer/devui';
 import { GamepadWrapper, XR_BUTTONS } from 'gamepad-wrapper';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
+import { OrbitControls } from 'three/addons/controls/OrbitControls';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment';
+import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory";
+
+import { HTMLMesh } from 'three/addons/interactive/HTMLMesh';
+import Stats from "three/addons/libs/stats.module";
 
 import setupScene from "./setup/setupScene";
 
 let currentSession;
 
-const clock = new THREE.Clock();
-const scene = new THREE.Scene();
-const controllerModelFactory = new XRControllerModelFactory();
-const controllers = {
-    left: null,
-    right: null,
-};
-
 let waiting_for_confirmation = false;
 
 async function initScene (setup = (scene, camera, controllers, players) => {}) {
+
+    const clock = new THREE.Clock();
+    const scene = new THREE.Scene();
+    const controllerModelFactory = new XRControllerModelFactory();
+    const controllers = {
+        left: null,
+        right: null,
+    };
 
     // iwer setup
     let nativeWebXRSupport = false;
@@ -67,6 +70,23 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     body.appendChild(container);
 
     console.log(container);
+
+    // Setup Stats
+    const stats = new Stats();
+    stats.showPanel(0);
+    stats.dom.style.maxWidth = "100px";
+    stats.dom.style.minWidth = "100px";
+    stats.dom.style.backgroundColor = "black";
+    document.body.appendChild(stats.dom);
+
+    const statsMesh = new HTMLMesh( stats.dom );
+    statsMesh.position.x = -1;
+    statsMesh.position.y = 2;
+    statsMesh.position.z = -2;
+    statsMesh.rotation.y = Math.PI / 4;
+    statsMesh.scale.setScalar(8);
+
+    scene.add(statsMesh);
 
     const canvas= window.document.createElement('canvas');
 
