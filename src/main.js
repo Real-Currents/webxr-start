@@ -392,7 +392,7 @@ async function initRenderer (setup = (scene, camera, controllers, players) => {}
         player.position.z = camera.position.z;
         player.position.y = camera.position.y;
 
-        updateScene(currentSession, delta, time);
+        updateScene(currentSession, delta, time, null, null);
 
         renderer.render(scene, camera);
 
