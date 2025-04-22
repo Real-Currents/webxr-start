@@ -6,9 +6,6 @@ import { GamepadWrapper, XR_BUTTONS } from 'gamepad-wrapper';
 import { OrbitControls } from 'three/addons/controls/OrbitControls';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment';
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory";
-import { OrbitControls } from 'three/addons/controls/OrbitControls';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment';
-import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory";
 
 import { HTMLMesh } from "three/addons/interactive/HTMLMesh";
 import Stats from "three/addons/libs/stats.module";
@@ -51,9 +48,9 @@ async function initRenderer (setup = (scene, camera, controllers, players) => {}
     document.body.appendChild(stats.dom);
 
     const statsMesh = new HTMLMesh( stats.dom );
-    statsMesh.position.x = -1;
+    statsMesh.position.x = -1.5;
     statsMesh.position.y = 2;
-    statsMesh.position.z = -2;
+    statsMesh.position.z = -1;
     statsMesh.rotation.y = Math.PI / 4;
     statsMesh.scale.setScalar(8);
 
