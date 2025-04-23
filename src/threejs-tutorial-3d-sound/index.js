@@ -242,9 +242,9 @@ function step1_(speaker, analyzer, analyzerData, timeElapsed) {
             const c = a.clone();
             return c.lerp(b, t);
         });
-        colourSpline.AddPoint(0.0, new THREE.Color(0x4040FF));
+        colourSpline.AddPoint(0.0, new THREE.Color(0xFFFF80));
         colourSpline.AddPoint(0.25, new THREE.Color(0xFF4040));
-        colourSpline.AddPoint(1.0, new THREE.Color(0xFFFF80));
+        colourSpline.AddPoint(1.0, new THREE.Color(0x4040FF));
 
         const remap = [15, 13, 11, 9, 7, 5, 3, 1, 0, 2, 4, 6, 8, 10, 12, 14];
         for (let r = 0; r < analyzerData.length; ++r) {
@@ -288,7 +288,7 @@ async function initializeAudio (camera, speaker1, speaker2) {
     const audioLoader = new THREE.AudioLoader(loadManager);
 
     const soundPromise1 = new Promise((resolve, reject) => {
-        audioLoader.load('audio/resources/music/Ectoplasm.mp3', (buffer) => {
+        audioLoader.load('audio/kenny.mp3', (buffer) => {
             setTimeout(() => {
                 sound1.setBuffer(buffer);
                 sound1.setLoop(true);
@@ -300,22 +300,17 @@ async function initializeAudio (camera, speaker1, speaker2) {
 
                 const analyzer1Data_ = [];
 
-                function raf_(speaker1, analyzer1_, analyzer1Data_) {
-                    requestAnimationFrame((t) => {
-                        if (previousRAF_ === null) {
-                            previousRAF_ = t;
-                        }
-
-                        const timeElapsed = t - previousRAF_;
-
-                        step1_(speaker1, analyzer1_, analyzer1Data_, timeElapsed);
-
+                sound1.raf_ = function (t) {
+                    if (previousRAF_ === null) {
                         previousRAF_ = t;
-                        raf_(speaker1, analyzer1_, analyzer1Data_)
-                    });
-                }
+                    }
 
-                raf_(speaker1, analyzer1_, analyzer1Data_);
+                    const timeElapsed = t - previousRAF_;
+
+                    step1_(speaker1, analyzer1_, analyzer1Data_, timeElapsed);
+
+                    previousRAF_ = t;
+                }
 
                 resolve(sound1);
 
@@ -326,7 +321,7 @@ async function initializeAudio (camera, speaker1, speaker2) {
     sounds.push(soundPromise1);
 
     const soundPromise2 = new Promise((resolve, reject) => {
-        audioLoader.load('audio/resources/music/AcousticRock.mp3', (buffer) => {
+        audioLoader.load('audio/kenny.mp3', (buffer) => {
             setTimeout(() => {
                 sound2.setBuffer(buffer);
                 sound2.setLoop(true);
@@ -339,22 +334,17 @@ async function initializeAudio (camera, speaker1, speaker2) {
                     analyzer2_.data, 64, 1, THREE.RedFormat);
                 analyzer2Texture_.magFilter = THREE.LinearFilter;
 
-                function raf_(speaker2, analyzer2_, analyzer2Texture_) {
-                    requestAnimationFrame((t) => {
-                        if (previousRAF_ === null) {
-                            previousRAF_ = t;
-                        }
-
-                        const timeElapsed = t - previousRAF_;
-
-                        step2_(speaker2, analyzer2_, analyzer2Texture_, timeElapsed);
-
+                sound2.raf_ = function (t) {
+                    if (previousRAF_ === null) {
                         previousRAF_ = t;
-                        raf_(speaker2, analyzer2_, analyzer2Texture_);
-                    });
-                }
+                    }
 
-                raf_(speaker2, analyzer2_, analyzer2Texture_);
+                    const timeElapsed = t - previousRAF_;
+
+                    step2_(speaker2, analyzer2_, analyzer2Texture_, timeElapsed);
+
+                    previousRAF_ = t;
+                }
 
                 resolve(sound2);
 
@@ -408,14 +398,14 @@ export default async function (renderer, scene, camera) {
     speaker2.castShadow = true;
     speaker2.receiveShadow = true;
 
-    const diffuseMap = mapLoader.load('resources/background-grey-dots.png');
+    const diffuseMap = mapLoader.load('material/resources/background-grey-dots.png');
     diffuseMap.anisotropy = maxAnisotropy;
 
     speaker2.visualizerMaterial = new THREE.MeshStandardMaterial({
         map: diffuseMap,
-        normalMap: mapLoader.load('resources/freepbr/flaking-plaster_normal-ogl.png'),
-        roughnessMap: mapLoader.load('resources/freepbr/flaking-plaster_roughness.png'),
-        metalnessMap: mapLoader.load('resources/freepbr/flaking-plaster_metallic.png'),
+        normalMap: mapLoader.load('material/resources/freepbr/flaking-plaster_normal-ogl.png'),
+        roughnessMap: mapLoader.load('material/resources/freepbr/flaking-plaster_roughness.png'),
+        metalnessMap: mapLoader.load('material/resources/freepbr/flaking-plaster_metallic.png'),
     });
 
     speaker2.visualizerMaterial.onBeforeCompile = (shader) => {

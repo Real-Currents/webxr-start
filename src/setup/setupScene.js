@@ -51,8 +51,12 @@ export default async function setupScene (renderer, scene, camera, controllers, 
         rotatingCube.rotX(0.01);
         rotatingCube.rotY(0.01);
 
-        if (!sound_data_loaded) {
-            if (data_out.sound_data.length > 1) {
+        if (data_out.sound_data.length > 0) {
+            for (const sound of data_out["sound_data"]) {
+                sound.raf_(delta); // request animation frame for sound
+            }
+
+            if (!sound_data_loaded) {
 
                 console.log(data_out);
 
@@ -73,7 +77,7 @@ export default async function setupScene (renderer, scene, camera, controllers, 
                         if ("action" in event) {
                             if (event["action"] == "play_sounds") {
                                 for (const sound of data_out["sound_data"]) {
-                                    sound.play();
+                                    sound.play(); // play sound
                                 }
                             }
                         }
