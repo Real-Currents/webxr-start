@@ -6,12 +6,19 @@
 
 import * as THREE from "three";
 
+import { math } from './math.js';
+import { noise } from './noise.js';
 
-const mapLoader = new THREE.TextureLoader();
+import loadManager from "../loadManager";
 
-function initializeAudio_(camera) {
+
+const mapLoader = new THREE.TextureLoader(loadManager);
+
+async function initializeAudio (camera, speaker1, speaker2) {
+    const sounds = [];
+
     const listener_ = new THREE.AudioListener();
-    camera_.add(listener_);
+    camera.add(listener_);
 
     const sound1 = new THREE.PositionalAudio(listener_);
     const sound2 = new THREE.PositionalAudio(listener_);
@@ -19,34 +26,47 @@ function initializeAudio_(camera) {
     speaker1.add(sound1);
     speaker2.add(sound2);
 
-    const loader = new THREE.AudioLoader();
-    loader.load('resources/music/Ectoplasm.mp3', (buffer) => {
-        setTimeout(() => {
-            sound1.setBuffer(buffer);
-            sound1.setLoop(true);
-            sound1.setVolume(1.0);
-            sound1.setRefDistance(1);
-            sound1.play();
+    const audioLoader = new THREE.AudioLoader(loadManager);
 
-            const analyzer1_ = new THREE.AudioAnalyser(sound1, 32);
-            const analyzer1Data_ = [];
-        }, 5000);
+    const soundPromise1 = new Promise((resolve, reject) => {
+        audioLoader.load('audio/resources/music/Ectoplasm.mp3', (buffer) => {
+            setTimeout(() => {
+                sound1.setBuffer(buffer);
+                sound1.setLoop(true);
+                sound1.setVolume(1.0);
+                sound1.setRefDistance(1);
+                // sound1.play();
+
+                resolve(sound1);
+
+                const analyzer1_ = new THREE.AudioAnalyser(sound1, 32);
+                const analyzer1Data_ = [];
+            }, 5000);
+        });
     });
 
-    loader.load('resources/music/AcousticRock.mp3', (buffer) => {
-        setTimeout(() => {
-            sound2.setBuffer(buffer);
-            sound2.setLoop(true);
-            sound2.setVolume(1.0);
-            sound2.setRefDistance(1);
-            sound2.play();
+    sounds.push(soundPromise1);
 
-            const analyzer2_ = new THREE.AudioAnalyser(sound2, 128);
-            const analyzer2Texture_ = new THREE.DataTexture(
-                analyzer2_.data, 64, 1, THREE.RedFormat);
-            analyzer2Texture_.magFilter = THREE.LinearFilter;
-        }, 5000);
+    const soundPromise2 = new Promise((resolve, reject) => {
+        audioLoader.load('audio/resources/music/AcousticRock.mp3', (buffer) => {
+            setTimeout(() => {
+                sound2.setBuffer(buffer);
+                sound2.setLoop(true);
+                sound2.setVolume(1.0);
+                sound2.setRefDistance(1);
+                // sound2.play();
+
+                resolve(sound2);
+
+                const analyzer2_ = new THREE.AudioAnalyser(sound2, 128);
+                const analyzer2Texture_ = new THREE.DataTexture(
+                    analyzer2_.data, 64, 1, THREE.RedFormat);
+                analyzer2Texture_.magFilter = THREE.LinearFilter;
+            }, 5000);
+        });
     });
+
+    sounds.push(soundPromise2);
 
     const indexTimer_ = 0;
     const noise1_ = new noise.Noise({
@@ -58,9 +78,11 @@ function initializeAudio_(camera) {
         scale: 0.1,
         seed: 1
     });
+
+    return sounds;
 }
 
-function loadMaterial_(name, tiling, anisotropy) {
+function loadMaterial (name, tiling, anisotropy) {
 
     const metalMap = mapLoader.load('material/resources/freepbr/' + name + 'metallic.png');
     metalMap.anisotropy = anisotropy;
@@ -96,11 +118,11 @@ function loadMaterial_(name, tiling, anisotropy) {
     return material;
 }
 
-export default function (renderer, scene, camera) {
+export default async function (renderer, scene, camera) {
 
     const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
 
-    const speaker1Material = loadMaterial_('worn_metal4_', 1, maxAnisotropy);
+    const speaker1Material = loadMaterial('worn_metal4_', 1, maxAnisotropy);
     const speaker1 = new THREE.Mesh(
         new THREE.BoxGeometry(1, 8, 4),
         speaker1Material);
@@ -109,7 +131,7 @@ export default function (renderer, scene, camera) {
     speaker1.receiveShadow = true;
 
     const speaker1Geo = new THREE.BoxGeometry(0.25, 0.25, 0.25);
-    const speaker1BoxMaterial = loadMaterial_('broken_down_concrete2_', 1, maxAnisotropy);
+    const speaker1BoxMaterial = loadMaterial('broken_down_concrete2_', 1, maxAnisotropy);
     const speakerMeshes1_ = [];
     const speaker1Group = new THREE.Group();
     speaker1Group.position.x = 0.5 + 0.125;
@@ -147,6 +169,8 @@ export default function (renderer, scene, camera) {
         metalnessMap: mapLoader.load('resources/freepbr/flaking-plaster_metallic.png'),
     });
 
+    const sounds = await initializeAudio(camera, speaker1, speaker2);
+
     // visualizerMaterial.onBeforeCompile = (shader) => {
     //     shader.uniforms.iTime = { value: 0.0 };
     //     shader.uniforms.iResolution = {value: new THREE.Vector2(128, 256)};
@@ -176,4 +200,8 @@ export default function (renderer, scene, camera) {
 
     scene.add(speaker1);
     scene.add(speaker2);
+
+    return [
+        ...sounds
+    ];
 }

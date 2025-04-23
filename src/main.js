@@ -128,9 +128,137 @@ async function initRenderer (setup = (renderer, scene, camera, controllers, play
         // gripSpace.visible = false;
     }
 
-    container.append(loadManager.div);
-
     const updateScene = await setup(renderer, scene, camera, controllers, player);
+
+    async function getXRSession (xr) {
+
+        console.log("xr", `${JSON.stringify(xr)}`);
+
+        let session = null;
+
+        try {
+            session = await (xr.requestSession("immersive-ar", sessionInit));
+        } catch (e) {
+            session = await (xr.requestSession("immersive-vr", sessionInit));
+        } finally {
+            return session;
+        }
+    }
+
+    async function onSessionStarted(session) {
+        session.addEventListener("end", onSessionEnded);
+        await renderer.xr.setSession(session);
+        currentSession = session;
+    }
+
+    function onSessionEnded() {
+        currentSession.removeEventListener("end", onSessionEnded);
+        currentSession = null;
+    }
+
+    const sessionInit = {
+        optionalFeatures: [
+            "local-floor",
+            "bounded-floor",
+            // "hand-tracking",
+            "layers"
+        ],
+        requiredFeatures: [
+            // "webgpu"
+        ]
+    };
+    const xr_button = document.createElement("button");
+    xr_button.className = "xr-button";
+    xr_button.disabled = true;
+    xr_button.innerHTML = "Preparing...";
+    xr_button.addEventListener('click', async () => {
+
+        console.log("XR Button clicked");
+
+        const delta = clock.getDelta();
+        const time = clock.getElapsedTime();
+
+        // Does xr object exist?
+        let nativeWebXRSupport = "xr" in navigator;
+
+        try {
+
+            if (nativeWebXRSupport) nativeWebXRSupport = (
+                // Does xr object support sessions?
+                await navigator.xr.isSessionSupported( 'immersive-ar' ) ||
+                await navigator.xr.isSessionSupported('immersive-vr') ||
+                nativeWebXRSupport
+            )
+
+        } catch (e) {
+            console.log(e.message, navigator);
+        }
+
+        // If no XR/VR available, setup Immersive Web Emulation Runtime (iwer) and emulated XR device (@iwer/devui)
+        if (!nativeWebXRSupport) {
+            const xrDevice = new XRDevice(metaQuest3);
+            xrDevice.installRuntime();
+            xrDevice.fovy = (75 / 180) * Math.PI;
+            xrDevice.ipd = 0;
+            window.xrdevice = xrDevice;
+            xrDevice.controllers.right.position.set(0.15649, 1.43474, -0.38368);
+            xrDevice.controllers.right.quaternion.set(
+                0.14766305685043335,
+                0.02471366710960865,
+                -0.0037767395842820406,
+                0.9887216687202454,
+            );
+            xrDevice.controllers.left.position.set(-0.15649, 1.43474, -0.38368);
+            xrDevice.controllers.left.quaternion.set(
+                0.14766305685043335,
+                0.02471366710960865,
+                -0.0037767395842820406,
+                0.9887216687202454,
+            );
+            new DevUI(xrDevice);
+
+        }
+
+        const session = await getXRSession(navigator.xr);
+
+        await onSessionStarted(session);
+
+        previewWindow.width = window.innerWidth;
+        previewWindow.height = window.innerHeight;
+
+        renderer.setSize(previewWindow.width, previewWindow.height);
+
+        camera.aspect = previewWindow.width / previewWindow.height;
+        camera.updateProjectionMatrix();
+
+        // Set camera position
+        // camera.position.z = 0;
+        camera.position.y = 0;
+
+        player.position.z = camera.position.z;
+        player.position.y = camera.position.y;
+
+        const initSceneDataIn = {
+            "events": [
+                {
+                    "action": "play_sounds"
+                }
+            ]
+        }
+
+        updateScene(currentSession, delta, time, initSceneDataIn, null);
+
+        renderer.render(scene, camera);
+
+        container.style = `display: block; color: #FFF; font-size: 24px; text-align: center; background-color: #000; height: 100vh; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
+        xr_button.innerHTML = "Reload";
+        xr_button.onclick = function () {
+            xr_button.disabled = true;
+            window.location.reload();
+        };
+    });
+
+    container.append(loadManager.div);
 
     await loadManager.addLoadHandler(async () => {
 
@@ -199,7 +327,16 @@ async function initRenderer (setup = (renderer, scene, camera, controllers, play
                 }
             }
 
-            updateScene(currentSession, delta, time, (Object.keys(sceneDataUpdate).length > 0) ? sceneDataUpdate : null, null);
+            updateScene(currentSession, delta, time, (Object.keys(sceneDataUpdate).length > 0) ? sceneDataUpdate : null, function (sceneDataOut) {
+                if ("events" in sceneDataOut && sceneDataOut.events.length > 0) {
+                    console.log(sceneDataOut);
+
+                    xr_button.innerHTML = "Enter XR";
+                    xr_button.style.opacity = 0.75;
+                    xr_button.disabled = false;
+                    delete xr_button.disabled;
+                }
+            });
 
             renderer.render(scene, camera);
 
@@ -207,128 +344,9 @@ async function initRenderer (setup = (renderer, scene, camera, controllers, play
 
             statsMesh.material.map.update();
         });
+
+        container.appendChild(xr_button);
     });
-
-    async function getXRSession (xr) {
-
-        console.log("xr", `${JSON.stringify(xr)}`);
-
-        let session = null;
-
-        try {
-            session = await (xr.requestSession("immersive-ar", sessionInit));
-        } catch (e) {
-            session = await (xr.requestSession("immersive-vr", sessionInit));
-        } finally {
-            return session;
-        }
-    }
-
-    async function onSessionStarted(session) {
-        session.addEventListener("end", onSessionEnded);
-        await renderer.xr.setSession(session);
-        currentSession = session;
-    }
-
-    function onSessionEnded() {
-        currentSession.removeEventListener("end", onSessionEnded);
-        currentSession = null;
-    }
-
-    const sessionInit = {
-        optionalFeatures: [
-            "local-floor",
-            "bounded-floor",
-            // "hand-tracking",
-            "layers"
-        ],
-        requiredFeatures: [
-            // "webgpu"
-        ]
-    };
-    const xr_button = document.createElement("button");
-    xr_button.className = "xr-button";
-    xr_button.innerHTML = "Enter XR";
-    xr_button.addEventListener('click', async () => {
-
-        console.log("XR Button clicked");
-
-        const delta = clock.getDelta();
-        const time = clock.getElapsedTime();
-
-        // Does xr object exist?
-        let nativeWebXRSupport = "xr" in navigator;
-
-        try {
-
-            if (nativeWebXRSupport) nativeWebXRSupport = (
-                // Does xr object support sessions?
-                await navigator.xr.isSessionSupported( 'immersive-ar' ) ||
-                await navigator.xr.isSessionSupported('immersive-vr') ||
-                nativeWebXRSupport
-            )
-
-        } catch (e) {
-            console.log(e.message, navigator);
-        }
-
-        // If no XR/VR available, setup Immersive Web Emulation Runtime (iwer) and emulated XR device (@iwer/devui)
-        if (!nativeWebXRSupport) {
-            const xrDevice = new XRDevice(metaQuest3);
-            xrDevice.installRuntime();
-            xrDevice.fovy = (75 / 180) * Math.PI;
-            xrDevice.ipd = 0;
-            window.xrdevice = xrDevice;
-            xrDevice.controllers.right.position.set(0.15649, 1.43474, -0.38368);
-            xrDevice.controllers.right.quaternion.set(
-                0.14766305685043335,
-                0.02471366710960865,
-                -0.0037767395842820406,
-                0.9887216687202454,
-            );
-            xrDevice.controllers.left.position.set(-0.15649, 1.43474, -0.38368);
-            xrDevice.controllers.left.quaternion.set(
-                0.14766305685043335,
-                0.02471366710960865,
-                -0.0037767395842820406,
-                0.9887216687202454,
-            );
-            new DevUI(xrDevice);
-
-        }
-
-        const session = await getXRSession(navigator.xr);
-
-        await onSessionStarted(session);
-
-        previewWindow.width = window.innerWidth;
-        previewWindow.height = window.innerHeight;
-
-        renderer.setSize(previewWindow.width, previewWindow.height);
-
-        camera.aspect = previewWindow.width / previewWindow.height;
-        camera.updateProjectionMatrix();
-
-        // Set camera position
-        // camera.position.z = 0;
-        camera.position.y = 0;
-
-        player.position.z = camera.position.z;
-        player.position.y = camera.position.y;
-
-        updateScene(currentSession, delta, time, null, null);
-
-        renderer.render(scene, camera);
-
-        container.style = `display: block; color: #FFF; font-size: 24px; text-align: center; background-color: #000; height: 100vh; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
-        xr_button.innerHTML = "Reload";
-        xr_button.onclick = function () {
-            xr_button.disabled = true;
-            window.location.reload();
-        };
-    });
-
-    container.appendChild(xr_button);
 
     return renderer;
 
