@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import plane from "../objects/plane";
 import rotatingCube from "../objects/rotatingCube";
+import setupThreejsTutorial3dSound from "../threejs-tutorial-3d-sound";
 
-
-export default async function setupScene (scene, camera, controllers, player) {
+export default async function setupScene (renderer, scene, camera, controllers, player) {
 
     // Set player view
     player.add(camera);
@@ -20,6 +20,8 @@ export default async function setupScene (scene, camera, controllers, player) {
         raySpace.getWorldPosition(plane.position);
         raySpace.getWorldQuaternion(plane.quaternion);
     }
+
+    setupThreejsTutorial3dSound(renderer, scene, camera);
 
     return function updateScene (currentSession, delta, time, sceneDataIn, sceneDataOut) {
 

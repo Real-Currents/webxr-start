@@ -17,7 +17,7 @@ let currentSession;
 
 let waiting_for_confirmation = false;
 
-async function initRenderer (setup = (scene, camera, controllers, players) => {}) {
+async function initRenderer (setup = (renderer, scene, camera, controllers, players) => {}) {
 
     const clock = new THREE.Clock();
     const scene = new THREE.Scene();
@@ -130,11 +130,9 @@ async function initRenderer (setup = (scene, camera, controllers, players) => {}
 
     container.append(loadManager.div);
 
-    const updateScene = await setup(scene, camera, controllers, player);
+    const updateScene = await setup(renderer, scene, camera, controllers, player);
 
     await loadManager.addLoadHandler(async () => {
-
-        const updateScene = await setup(scene, camera, controllers, player);
 
         renderer.setAnimationLoop(() => {
 
