@@ -327,16 +327,29 @@ async function initRenderer (setup = (renderer, scene, camera, controllers, play
                 }
             }
 
-            updateScene(currentSession, delta, time, (Object.keys(sceneDataUpdate).length > 0) ? sceneDataUpdate : null, function (sceneDataOut) {
-                if ("events" in sceneDataOut && sceneDataOut.events.length > 0) {
-                    console.log(sceneDataOut);
+            updateScene(
+                currentSession,
+                delta,
+                time,
+                (Object.keys(sceneDataUpdate).length > 0) ? sceneDataUpdate : null,
+                function (sceneDataOut) {
+                    if ("events" in sceneDataOut && sceneDataOut.events.length > 0) {
+                        console.log(sceneDataOut);
 
-                    xr_button.innerHTML = "Enter XR";
-                    xr_button.style.opacity = 0.75;
-                    xr_button.disabled = false;
-                    delete xr_button.disabled;
+                        for (const event of sceneDataOut["events"]) {
+                            if ("action" in event) {
+                                if (event["action"] == "sounds_ready") {
+
+                                    xr_button.innerHTML = "Enter XR";
+                                    xr_button.style.opacity = 0.75;
+                                    xr_button.disabled = false;
+                                    delete xr_button.disabled;
+                                }
+                            }
+                        }
+                    }
                 }
-            });
+            );
 
             renderer.render(scene, camera);
 
