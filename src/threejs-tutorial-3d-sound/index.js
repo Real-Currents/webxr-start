@@ -288,7 +288,7 @@ async function initializeAudio (camera, speaker1, speaker2) {
     const audioLoader = new THREE.AudioLoader(loadManager);
 
     const soundPromise1 = new Promise((resolve, reject) => {
-        audioLoader.load('audio/kenny.mp3', (buffer) => {
+        audioLoader.load('audio/MIXST003.mp3', (buffer) => {
             setTimeout(() => {
                 sound1.setBuffer(buffer);
                 sound1.setLoop(true);
@@ -321,7 +321,7 @@ async function initializeAudio (camera, speaker1, speaker2) {
     sounds.push(soundPromise1);
 
     const soundPromise2 = new Promise((resolve, reject) => {
-        audioLoader.load('audio/kenny.mp3', (buffer) => {
+        audioLoader.load('audio/MIXST003.mp3', (buffer) => {
             setTimeout(() => {
                 sound2.setBuffer(buffer);
                 sound2.setLoop(true);
