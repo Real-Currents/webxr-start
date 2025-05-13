@@ -1,8 +1,15 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+
 import loadManager from "../loadManager";
 import plane from "../objects/plane";
 import rotatingCube from "../objects/rotatingCube";
 import setupThreejsTutorial3dSound from "../threejs-tutorial-3d-sound";
+
+const gltfLoader = new GLTFLoader();
+
+const gloveGroup_01 = new THREE.Group();
+const gloveGroup_02 = new THREE.Group();
 
 const sound_data = [];
 let sound_data_loaded = false;
@@ -13,17 +20,24 @@ export default async function setupScene (renderer, scene, camera, controllers, 
     player.add(camera);
 
     // Place objects
-    scene.add(plane);
-    scene.add(rotatingCube);
+    // scene.add(plane);
+    // scene.add(rotatingCube);
 
     // Get rayspace from controller object and update position relative to plane (floor)
     if (controllers.hasOwnProperty("right") && controllers.right !== null) {
 
         const { gamepad, raySpace } = controllers.right;
-
-        raySpace.getWorldPosition(plane.position);
-        raySpace.getWorldQuaternion(plane.quaternion);
     }
+
+    // Load the glove model
+    gltfLoader.load('assets/glove_01.glb', (gltf) => {
+        gloveGroup_01.add(gltf.scene);
+    });
+
+    // Load the glove model
+    gltfLoader.load('assets/glove_02.glb', (gltf) => {
+        gloveGroup_02.add(gltf.scene);
+    });
 
     const wait_for_sounds_to_load = setupThreejsTutorial3dSound(renderer, scene, camera);
 
@@ -47,6 +61,35 @@ export default async function setupScene (renderer, scene, camera, controllers, 
                 ...sound_data
             ]
         };
+
+        if (controllers.hasOwnProperty("left") && controllers.left !== null) {
+
+            const gamepad_01 = controllers.left.gamepad,
+                raySpace_01 = controllers.left.raySpace,
+                mesh_01 = controllers.left.mesh;
+
+            // Attach the glove to the right controller
+            if (!raySpace_01.children.includes(gloveGroup_01)) {
+                raySpace_01.add(gloveGroup_01);
+                mesh_01.visible = false; // Hide the default controller model
+            }
+        }
+
+        if (controllers.hasOwnProperty("right") && controllers.right !== null) {
+
+            const gamepad_02 = controllers.right.gamepad,
+                raySpace_02 = controllers.right.raySpace,
+                mesh_02 = controllers.right.mesh;
+
+            raySpace_02.getWorldPosition(plane.position);
+            raySpace_02.getWorldQuaternion(plane.quaternion);
+
+            // Attach the glove to the right controller
+            if (!raySpace_02.children.includes(gloveGroup_02)) {
+                raySpace_02.add(gloveGroup_02);
+                mesh_02.visible = false; // Hide the default controller model
+            }
+        }
 
         rotatingCube.rotX(0.01);
         rotatingCube.rotY(0.01);
