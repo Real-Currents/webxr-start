@@ -6,7 +6,7 @@ import plane from "../objects/plane";
 import rotatingCube from "../objects/rotatingCube";
 import setupThreejsTutorial3dSound from "../threejs-tutorial-3d-sound";
 
-const gltfLoader = new GLTFLoader();
+const gltfLoader = new GLTFLoader(loadManager);
 
 const gloveGroup_01 = new THREE.Group();
 const gloveGroup_02 = new THREE.Group();
