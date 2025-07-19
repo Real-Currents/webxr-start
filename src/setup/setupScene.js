@@ -1,5 +1,6 @@
-import * as THREE from "three";
-import plane from "../objects/plane";
+// import * as THREE from "three";
+// import plane from "../objects/plane";
+import plane from "../objects/smallPlane";
 import rotatingCube from "../objects/rotatingCube";
 
 

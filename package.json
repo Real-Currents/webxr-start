@@ -3,19 +3,6 @@
   "version": "0.0.1",
   "description": "WebXR Start!",
   "main": "src/main.js",
-  "scripts": {
-    "build": "vite build",
-    "dev": "vite --host 0.0.0.0",
-    "format": "prettier --write .",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview --host 0.0.0.0",
-    "render:readme": "quarto render README.qmd --to gfm --output README.md",
-    "start": "vite --host 0.0.0.0 --open",
-    "start-local": "vite --config ../vite.config.local.js",
-    "test": "jest --no-cache",
-    "test:clean": "jest --clearCache",
-    "type:check": "tsc --noEmit"
-  },
   "author": "dancingfrog",
   "license": "CC0-1.0",
   "dependencies": {
@@ -30,6 +17,20 @@
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
     "@esbuild-plugins/node-modules-polyfill": "^0.2.2",
     "@vitejs/plugin-basic-ssl": "^1.2.0",
+    "rollup-plugin-shader": "^0.0.3",
     "vite": "^5.4.11"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host 0.0.0.0",
+    "format": "prettier --write .",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview --host 0.0.0.0",
+    "render:readme": "quarto render README.qmd --to gfm --output README.md",
+    "start": "vite --host 0.0.0.0 --open",
+    "start-local": "vite --config ../vite.config.local.js",
+    "test": "jest --no-cache",
+    "test:clean": "jest --clearCache",
+    "type:check": "tsc --noEmit"
   }
 }

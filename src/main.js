@@ -83,9 +83,9 @@ async function initRenderer (setup = (scene, camera, controllers, players) => {}
     document.body.appendChild(stats.dom);
 
     const statsMesh = new HTMLMesh( stats.dom );
-    statsMesh.position.x = -1;
+    statsMesh.position.x = -1.5;
     statsMesh.position.y = 2;
-    statsMesh.position.z = -2;
+    statsMesh.position.z = -1;
     statsMesh.rotation.y = Math.PI / 4;
     statsMesh.scale.setScalar(8);
 
@@ -346,6 +346,11 @@ async function initRenderer (setup = (scene, camera, controllers, players) => {}
         function onSessionEnded() {
             currentSession.removeEventListener("end", onSessionEnded);
             currentSession = null;
+
+            camera.aspect = previewWindow.width / previewWindow.height;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(previewWindow.width, previewWindow.height);
         }
 
         const sessionInit = {
