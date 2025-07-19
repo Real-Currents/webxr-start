@@ -1,5 +1,76 @@
-# WebXR Start!
+# WebXR Box Test - Red Metallic Cube with Shadow Casting (Lowered Scene)
 John Hall
+
+This project modifies the webxr-start template by replacing the original
+textured rotating cube with a red metallic cube based on Blender scene
+data, featuring a cube-sized mipmapped floor and dramatic shadow
+casting. The entire scene has been lowered by 0.5 units for optimal
+viewing.
+
+## Changes Made
+
+Starting from the original `webxr-start` template:
+
+#### New Files Added:
+
+- `src/material/redMetallicMaterial.js` - Red metallic PBR material
+  matching Blender settings
+- `src/objects/redMetallicBox.js` - Red metallic cube replacing the
+  original rotatingCube
+- `src/geometry/smallPlaneGeometry.js` - 1x1 plane geometry matching
+  cube size
+- `src/objects/smallPlane.js` - Small floor plane with mipmapped texture
+  and shadow receiving
+
+#### Modified Files:
+
+- `src/setup/setupScene.js` - Updated to:
+  - Use smallPlane instead of large plane (1x1 vs 6x6)
+  - Add directional light positioned for optimal shadow casting
+  - Position red metallic box at y=1.0 for visible shadows (lowered)
+  - Keep Blender point light for additional illumination (lowered)
+  - Enable shadow receiving on floor plane
+- `src/main.js` - Enabled shadow mapping in renderer:
+  - `renderer.shadowMap.enabled = true`
+  - `renderer.shadowMap.type = THREE.PCFSoftShadowMap`
+
+#### Scene Positioning (Lowered by 0.5 units):
+
+- **Floor plane**: y = -0.5 (was y = 0)
+- **Red metallic cube**: y = 1.0 (was y = 1.5)
+- **Directional light**: y = 3.5 (was y = 4.0)
+- **Point light**: y = 5.4039 (was y = 5.9039)
+
+### Scene Features
+
+**Shadow Casting Setup:** - **Directional Light**: Positioned at (2,
+3.5, 2) for diagonal shadow casting - **Shadow Quality**: 2048x2048
+shadow maps with soft PCF filtering - **Shadow Camera**: Optimized
+bounds for small scene (-3 to +3 units)
+
+**Red Metallic Material Properties:** - Base Color: RGB(0.8, 0.1, 0.1) →
+Three.js color 0xCC1A1A - Metallic: 1.0 (fully metallic) - Roughness:
+0.2 (shiny, reflective finish) - Position: Floating at (0, 1.0, 0) above
+small floor
+
+**Floor Properties:** - Size: 1x1 units (same as cube) - Material:
+Original mipmapped texture system - Shadow receiving enabled - Position:
+At y=-0.5 (lowered ground level)
+
+### Scene Content
+
+The scene now contains: 1. **Red metallic cube** casting shadows as it
+rotates at y=1.0 2. **Small mipmapped floor** (1x1 size) at y=-0.5 3.
+**Directional light** for sharp shadow casting at y=3.5 4. **Point
+light** from Blender scene data for illumination at y=5.4 5. **Ambient
+light** for overall visibility 6. **All original WebXR functionality**
+preserved
+
+### Visual Effect
+
+The rotating red metallic cube casts dynamic shadows on the small
+mipmapped floor as it spins. The lowered scene positioning creates
+better proportions and viewing angles for the shadow casting effect.
 
 ## Configuration
 
@@ -19,3 +90,18 @@ Run `npm run dev` to run the WebXR dev server.
       ➜  Local:   https://localhost:5173/
       ➜  Network: use --host to expose
       ➜  press h + enter to show help
+
+## WebXR Features Preserved
+
+- Full WebXR/VR support with iwer
+- Controller interactions
+- DevUI for testing without VR hardware
+- Stats monitoring
+- All original dependencies and project structure
+- LoadManager functionality maintained
+- High-quality shadow rendering
+
+The cube rotates continuously at the lowered position, casting moving
+shadows that create an engaging visual display highlighting both the
+Blender-based red metallic material and the original template’s
+mipmapped floor texture.
