@@ -4,6 +4,7 @@ import basicSsl from "@vitejs/plugin-basic-ssl";
 import shader from 'rollup-plugin-shader';
 
 export default {
+    base: "",
     define: {
        // "process.env.MapboxAccessToken": JSON.stringify(process.env.MapboxAccessToken)
     },
@@ -52,6 +53,6 @@ export default {
             ],
             // specify whether to remove comments
             removeComments: true,   // default: true
-        }),
+        })
     ]
 };

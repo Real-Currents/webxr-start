@@ -3,10 +3,14 @@ import * as THREE from "three";
 import { XRDevice, metaQuest3 } from 'iwer';
 import { DevUI } from '@iwer/devui';
 import { GamepadWrapper, XR_BUTTONS } from 'gamepad-wrapper';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
+import { OrbitControls } from 'three/addons/controls/OrbitControls';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment';
+import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory";
 
+import { HTMLMesh } from 'three/addons/interactive/HTMLMesh.js';
+import Stats from "https://unpkg.com/three@0.118.3/examples/jsm/libs/stats.module.js";
+
+import loadManager from "./loadManager";
 import setupScene from "./setup/setupScene";
 
 import defaultVertexShader from './shaders/default/vertexShader.glsl';
@@ -14,39 +18,112 @@ import portalFragmentShader from './shaders/portal/fragmentShader.glsl';
 
 let currentSession;
 
-const clock = new THREE.Clock();
-const scene = new THREE.Scene();
-const controllerModelFactory = new XRControllerModelFactory();
-const controllers = {
-    left: null,
-    right: null,
-};
-
 let waiting_for_confirmation = false;
 
-// Setup clipping planes
-const globalPlaneInside = [new THREE.Plane(new THREE.Vector3(0, 0, 1), 0)];
-const globalPlaneOutside = [new THREE.Plane(new THREE.Vector3(0, 0, -1), 0)];
+function getPortalClippingPlanes (renderer, camera) {
 
-let isInsidePortal = true; // false;
+    // Setup Clipping planes
+    let xrCamera = renderer.xr.getCamera(camera);
+    let xrCameraMatrix = xrCamera.matrixWorld;
+    let xrCameraA = new THREE.Vector3();
+    xrCameraA.setFromMatrixPosition(xrCameraMatrix);
+    // // xrCameraDirection From:
+    // // https://stackoverflow.com/questions/59554505/how-can-i-get-camera-world-direction-with-webxr#answer-59687055
+    // let xrCameraDX = xrCameraMatrix.elements[8],
+    //     xrCameraDY = xrCameraMatrix.elements[9],
+    //     xrCameraDZ = xrCameraMatrix.elements[10];
+    // let xrCameraDirection = new THREE.Vector3(-xrCameraDX, -xrCameraDY, -xrCameraDZ).normalize();
 
-const sceneContainer = new THREE.Group();
+    // console.log(xrCameraA);
 
-const mapLayers = new Map();
-mapLayers.set("inside", 1);
-mapLayers.set("outside", 2);
-mapLayers.set("portal", 3);
+    const viewingPlaneLeft = -1; // x left
+    const viewingPlaneRight = 1; // x right
+    const viewingPlaneTop = 2.5; // y top
+    const viewingPlaneBottom = 1; // y bottom
+    const viewingPlaneDepth = 0; // z
+    const viewingPlaneHorizonalCenter = 0;
+    const viewingPlaneVerticalCenter= (viewingPlaneBottom + viewingPlaneTop) / 2; // (viewingPlaneTop - viewingPlaneBottom)/ 2 + viewingPlaneBottom
 
-// Helper function to set nested meshes to layers
-// https://github.com/mrdoob/three.js/issues/10959
-function setLayer(object, layer) {
-    object.layers.set(layer);
-    object.traverse(function (child) {
-        child.layers.set(layer);
-    });
+    const clippingLeftP = new THREE.Vector3(viewingPlaneLeft, xrCameraA.y, viewingPlaneDepth);
+    const clippingRightP = new THREE.Vector3(viewingPlaneRight, xrCameraA.y, viewingPlaneDepth);
+    const clippingTopP = new THREE.Vector3(xrCameraA.x, viewingPlaneTop, viewingPlaneDepth);
+    const clippingBottomP = new THREE.Vector3(xrCameraA.x, viewingPlaneBottom, viewingPlaneDepth);
+
+    const vDLeft = new THREE.Vector3();
+    vDLeft.subVectors(clippingLeftP, xrCameraA);
+    const vDRight = new THREE.Vector3();
+    vDRight.subVectors(clippingRightP, xrCameraA);
+    const vDTop = new THREE.Vector3();
+    vDTop.subVectors(clippingTopP, xrCameraA);
+    const vDBottom = new THREE.Vector3();
+    vDBottom.subVectors(clippingBottomP, xrCameraA);
+
+    const clippingLeftUnitVector = new THREE.Vector3(1.0, 0, 0);
+    const clippingLeftDirection = vDLeft.clone().cross(new THREE.Vector3(0, 1.0, 0)).normalize();
+    const clippingLeftUnitAngleToDirection = clippingLeftUnitVector.angleTo(clippingLeftDirection.clone());
+    const clippingLeftX = Math.cos(clippingLeftUnitAngleToDirection) * viewingPlaneLeft;
+    const clippingRightUnitVector = new THREE.Vector3(-1.0, 0, 0);
+    const clippingRightDirection = vDRight.clone().cross(new THREE.Vector3(0, -1.0, 0)).normalize();
+    const clippingRightUnitAngleToDirection = clippingRightUnitVector.angleTo(clippingRightDirection.clone());
+    const clippingRightX = Math.cos(clippingRightUnitAngleToDirection) * viewingPlaneRight;
+    const clippingTopUnitVector = new THREE.Vector3(0, -1.0, 0);
+    const clippingTopDirection = vDTop.clone().cross(new THREE.Vector3(1.0, 0, 0)).normalize();
+    const clippingTopUnitAngleToDirection = clippingTopUnitVector.angleTo(clippingTopDirection.clone());
+    const clippingTopY = Math.cos(clippingTopUnitAngleToDirection) * viewingPlaneTop;
+    const clippingBottomUnitVector = (xrCameraA.z > viewingPlaneDepth) ?
+        new THREE.Vector3(0, 1.0, 0) :
+        new THREE.Vector3(0, -1.0, 0);
+    const clippingBottomDirection = vDBottom.clone().cross(new THREE.Vector3(-1, 0, 0)).normalize(); // new THREE.Vector3(0, 1, 0);
+    const clippingBottomUnitAngleToDirection = clippingBottomUnitVector.angleTo(clippingBottomDirection.clone());
+    const clippingBottomY = Math.cos(clippingBottomUnitAngleToDirection) * viewingPlaneBottom; // viewingPlaneBottom = 1.0 // length on unit circle
+
+    const clippingLeftPlane = new THREE.Plane(clippingLeftDirection.clone(), -clippingLeftX);
+    const clippingRightPlane = new THREE.Plane(clippingRightDirection.clone(), clippingRightX);
+    const clippingTopPlane = new THREE.Plane(clippingTopDirection.clone(), clippingTopY);
+    const clippingBottomPlane = new THREE.Plane(clippingBottomDirection.clone(), clippingBottomY * -(viewingPlaneBottom - 0.001));
+    const clippingPlaneInside = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    const clippingPlaneOutside = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+
+    const clipping_data = {
+        "leftΘ": clippingLeftUnitAngleToDirection,
+        "leftX": clippingLeftX,
+        "rightΘ": clippingRightUnitAngleToDirection,
+        "rightX": clippingRightX,
+        "topΘ": clippingTopUnitAngleToDirection,
+        "topY": clippingTopY,
+        "bottomΘ": clippingBottomUnitAngleToDirection,
+        "bottomY": clippingBottomY
+    };
+
+    const clipping_data_for_html = JSON.stringify(clipping_data)
+        .replace(new RegExp("\\\\n", "g"), '<br />')
+        .replace(new RegExp('"\:', "g"), '":<br />')
+        .replace(new RegExp(',', "g"), '",<br />')
+        .replace(new RegExp("{", "g"), '{<br />')
+        .replace(new RegExp("}", "g"), '<br />}');
+
+    // console.log(clipping_data_for_html);
+
+    return [
+        clippingLeftPlane,
+        clippingRightPlane,
+        clippingTopPlane,
+        clippingBottomPlane,
+        ...(xrCameraA.z > viewingPlaneDepth) ?
+            [ clippingPlaneOutside ] :
+            [ clippingPlaneInside, clippingPlaneOutside ]
+    ];
 }
 
-async function initScene (setup = (scene, camera, controllers, players, mapLayers, setLayer) => {}) {
+async function initScene (setup = (scene, camera, controllers, players) => {}) {
+
+    const clock = new THREE.Clock();
+    const scene = new THREE.Scene();
+    const controllerModelFactory = new XRControllerModelFactory();
+    const controllers = {
+        left: null,
+        right: null,
+    };
 
     // iwer setup
     let nativeWebXRSupport = false;
@@ -81,24 +158,38 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
 
     }
 
-    const player = new THREE.Group();
-    scene.add(player);
-
     const previewWindow = {
-        width: window.innerWidth / 2, // 640,
+        width: window.innerWidth, // / 2, // 640,
         height: window.innerHeight + 10, // 480,
     };
 
     const body = document.body,
         container = document.createElement('div');
-    container.style = `display: inline-block; background-color: #000; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
+    container.style = `display: block; background-color: #000; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
     body.appendChild(container);
 
     console.log(container);
 
-    const renderer = new THREE.WebGLRenderer({
-        antialias: true
-    });
+    // Setup Stats
+    const stats = new Stats();
+    stats.showPanel(0);
+    stats.dom.style.maxWidth = "100px";
+    stats.dom.style.minWidth = "100px";
+    stats.dom.style.backgroundColor = "black";
+    document.body.appendChild(stats.dom);
+
+    const statsMesh = new HTMLMesh( stats.dom );
+    statsMesh.position.x = -1;
+    statsMesh.position.y = 2;
+    statsMesh.position.z = -2;
+    statsMesh.rotation.y = Math.PI / 4;
+    statsMesh.scale.setScalar(8);
+
+    scene.add(statsMesh);
+
+    const canvas= window.document.createElement('canvas');
+
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(previewWindow.width, previewWindow.height);
     renderer.xr.enabled = true;
@@ -110,37 +201,16 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
 
     container.appendChild(renderer.domElement);
 
-    function resizeRenderer(width, height) {
-        renderer.setSize(width, height);
-    }
-
-    const portalRenderTarget = new THREE.WebGLRenderTarget(1, 1);
-
-    function resizePortalRenderTarget(width, height) {
-        portalRenderTarget.setSize(width, height);
-    }
-
-    resizePortalRenderTarget(previewWindow.width, previewWindow.height);
-
-    const resolution = new THREE.Vector2();
-
     const camera = new THREE.PerspectiveCamera(
         50,
         previewWindow.width / previewWindow.height,
         0.1,
-        100,
+        1000,
     );
-    camera.position.set(0, 1.6, 3);
+    camera.position.set(0, 1.6, 1);
 
-    // const controls = new OrbitControls(camera, container);
-    // controls.target.set(0, 1.6, 0);
-    // controls.update();
-
-    const cameraLookAtTarget = new THREE.Vector3(0, 0.5, 0);
-    const controls = new OrbitControls(camera, renderer.domElement);
-    // controls.enableZoom = false;
-    // controls.enablePan = false;
-    controls.target = cameraLookAtTarget;
+    const controls = new OrbitControls(camera, container);
+    controls.target.set(0, 1.6, 0);
     controls.update();
 
     console.log(renderer.domElement);
@@ -155,6 +225,13 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
     }
 
     window.addEventListener('resize', onWindowResize);
+
+    const environment = new RoomEnvironment(renderer);
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmremGenerator.fromScene(environment).texture;
+
+    const player = new THREE.Group();
+    scene.add(player);
 
     for (let i = 0; i < 2; i++) {
         const raySpace = renderer.xr.getController(i);
@@ -172,7 +249,7 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
                 gamepad: new GamepadWrapper(e.data.gamepad),
                 raySpace,
                 gripSpace,
-                mesh,
+                mesh
             };
         });
 
@@ -188,348 +265,6 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
         // gripSpace.visible = false;
     }
 
-    // Portal code from:
-    //   https://medium.com/@petercoolen/breaking-down-the-portal-effect-how-to-create-an-immersive-ar-experience-9654aa882c13
-
-    // Adaptation of portal example from
-    //   [Breaking Down the Portal Effect: How to Create an Immersive AR Experience](https://medium.com/@petercoolen/breaking-down-the-portal-effect-how-to-create-an-immersive-ar-experience-9654aa882c13)
-    //   Code: https://codepen.io/Qubica/pen/bGjRLXP
-    // ... BUT, one thing that is very different is that the "inside"/"outside" boundaries, which
-    // are hardcoded directional vectors) have to be swapped for WebXR; I don't know why...
-    const portalCanvas = document.createElement('canvas');
-    document.body.append(portalCanvas);
-    const ctx = portalCanvas
-        // .getContext('2d');
-        .getContext("webgl2");
-    const texture = new THREE.CanvasTexture(portalCanvas);
-
-    ctx.canvas.width = window.innerWidth;
-    ctx.canvas.height = window.innerHeight;
-
-    // ctx.fillStyle = "transparent";
-    // ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    //
-    // function randInt(min, max) {
-    //     if (max === undefined) {
-    //         max = min;
-    //         min = 0;
-    //     }
-    //     return Math.random() * (max - min) + min | 0;
-    // }
-    //
-    // function drawRandomDot() {
-    //     ctx.strokeStyle = `#${randInt(0x1000000).toString(16).padStart(6, '0')}`;
-    //     ctx.fillStyle = `#${randInt(0x1000000).toString(16).padStart(6, '0')}`;
-    //     ctx.beginPath();
-    //
-    //     const x = randInt(ctx.canvas.width);
-    //     const y = randInt(ctx.canvas.height);
-    //     const radius = randInt(10, 64);
-    //     ctx.arc(x, y, radius, 0, Math.PI * 2);
-    //     ctx.stroke();
-    //     ctx.fill();
-    // }
-    //
-    // for (let i = 0; i < 1000; i++) {
-    //     drawRandomDot();
-    // }
-
-    const portalRenderer = new THREE.WebGLRenderer({
-        antialias: true,
-        canvas: portalCanvas,
-    });
-    portalRenderer.setPixelRatio(window.devicePixelRatio);
-    portalRenderer.setSize(previewWindow.width, previewWindow.height);
-    portalRenderer.xr.enabled = false;
-    portalRenderer.localClippingEnabled = false;
-
-    function createPortal(size) {
-        const geometry = new THREE.PlaneGeometry(size, size);
-        const material = new THREE.MeshBasicMaterial({ // new THREE.ShaderMaterial({
-            // map: portalRenderTarget.texture || texture,
-            map: texture,
-            opacity: 1.0,
-            side: THREE.DoubleSide,
-            // uniforms: {
-            //     ...THREE.ShaderLib.physical.uniforms,
-            //     diffuse: { value: { "r": 0.36, "g": 0.51, "b": 0.65 } },
-            //     roughness: { value: 0.5 },
-            //     amplitude: { value: 0.25},
-            //     frequency: { value: 0.5 },
-            //     speed: { value: 0.3 },
-            //     time: { value: 1.0 }
-            // },
-            // vertexShader: defaultVertexShader,
-            // fragmentShader: portalFragmentShader,
-        });
-
-//         material.onBeforeCompile = (shader) => {
-//             shader.uniforms.uResolution = new THREE.Uniform(resolution);
-//
-//             shader.vertexShader = defaultVertexShader;
-//
-//             console.log("VertexShader:\n" + shader.vertexShader);
-//
-//             shader.fragmentShader = `
-//     uniform vec2 uResolution;
-// ` + shader.fragmentShader;
-//
-//             shader.fragmentShader = shader.fragmentShader.replace(
-//                 "#include <map_fragment>", `
-//     vec2 pos = gl_FragCoord.xy/uResolution;
-//     vec4 sampledDiffuseColor = texture2D( map, pos );
-//     diffuseColor *= sampledDiffuseColor;
-// `);
-//
-//             shader.fragmentShader = shader.fragmentShader.replace(
-//                 "#include <dithering_fragment>",
-//                 "#include <dithering_fragment>" + `
-//     // gl_FragColor = vec4(1, 0, 0, 1);
-//     // gl_FragColor = vec4(vNormal * 0.5 + 0.5, 1);
-//     // gl_FragColor = diffuseColor;
-//     gl_FragColor = diffuseColor * vec4(vNormal * 0.5 + 0.5, 1);
-// `);
-//             console.log("FragmentShader:\n" + shader.fragmentShader);
-//         };
-
-        geometry.rotateY(-Math.PI);
-
-        return new THREE.Mesh(geometry, material);
-    }
-
-    const portalRadialBounds = 1.0; // relative to portal size
-
-    const portalMesh = createPortal(portalRadialBounds * 2);
-    portalMesh.position.set(0, 1.2, 0);
-    setLayer(portalMesh, mapLayers.get("portal"));
-    sceneContainer.add(portalMesh);
-
-    const environment = new RoomEnvironment(renderer);
-    const pmremGenerator = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmremGenerator.fromScene(environment).texture; // <= light + texture for quest controllers
-
-    const updateScene = await setup(sceneContainer, camera, controllers, player, mapLayers, setLayer);
-
-    scene.add(sceneContainer);
-
-    function renderPortal (sceneObjects) {
-        // portalRenderer.clippingPlanes = isInsidePortal
-        //     ? globalPlaneInside
-        //     : globalPlaneOutside;
-
-        // sceneObjects.forEach(m => {
-        //     if (m.hasOwnProperty("material") && m.material.hasOwnProperty("clippingPlanes")) {
-        //         m.material.clippingPlanes = isInsidePortal
-        //             ? globalPlaneInside
-        //             : globalPlaneOutside;
-        //     }
-        // });
-
-        camera.layers.disable(mapLayers.get("portal"));
-        // if (isInsidePortal) {
-        //     camera.layers.disable(mapLayers.get("inside"));
-            camera.layers.enable(mapLayers.get("outside"));
-        // } else {
-        //     camera.layers.disable(mapLayers.get("outside"));
-            camera.layers.enable(mapLayers.get("inside"));
-        // }
-
-        portalRenderer.setRenderTarget(null);
-        portalRenderer.render(scene, camera);
-        texture.needsUpdate = true;
-        // portalRenderer.setRenderTarget(portalRenderTarget);
-        // portalRenderer.clear();
-        // portalRenderer.render(scene, camera);
-        // renderer.xr.enabled = false;
-        // renderer.setRenderTarget(portalRenderTarget);
-        // renderer.clear();
-        // renderer.render(scene, camera);
-    }
-
-    function renderWorld (sceneObjects) {
-        renderer.clippingPlanes = [];
-
-        sceneObjects.forEach(m => {
-            if (m.hasOwnProperty("material") && m.material.hasOwnProperty("clippingPlanes")) {
-                m.material.clippingPlanes = isInsidePortal
-                    ? globalPlaneOutside
-                    : globalPlaneInside;
-            }
-        });
-
-        portalMesh.material.side = isInsidePortal ? THREE.BackSide : THREE.FrontSide;
-
-        camera.layers.enable(mapLayers.get("portal"));
-        // if (isInsidePortal) {
-        //     camera.layers.disable(mapLayers.get("outside"));
-            camera.layers.enable(mapLayers.get("inside"));
-        // } else {
-        //     camera.layers.disable(mapLayers.get("inside"));
-        //     camera.layers.enable(mapLayers.get("outside"));
-        // }
-
-        // portalRenderer.setRenderTarget(null);
-        // portalRenderer.clear();
-        // portalRenderer.render(scene, camera);
-        // renderer.xr.enabled = true;
-        // renderer.setRenderTarget(null); // <= Does not work in WebXR!
-        // renderer.setRenderTarget(renderTarget); // <= Does not work in WebXR!
-        // renderer.setRenderTarget(renderer.getRenderTarget());  // <= Does not work in WebXR!
-        renderer.clear();
-        renderer.render(scene, camera);
-    }
-
-
-    renderer.setAnimationLoop(() => {
-        const delta = clock.getDelta();
-        const time = clock.getElapsedTime();
-        Object.values(controllers).forEach((controller) => {
-            if (controller?.gamepad) {
-                controller.gamepad.update();
-            }
-        });
-
-        const data = {
-            isInsidePortal,
-            globalPlaneInside,
-            globalPlaneOutside
-        };
-
-        if (controllers.hasOwnProperty("right") && controllers.right !== null) {
-
-            const { gamepad, raySpace } = controllers.right;
-
-            if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
-                console.log("Trigger on right controller was activated:", XR_BUTTONS.TRIGGER, gamepad);
-
-                const controller_vector = new THREE.Group();
-
-                raySpace.getWorldPosition(controller_vector.position);
-                raySpace.getWorldQuaternion(controller_vector.quaternion);
-
-                if (!!waiting_for_confirmation) {
-                    console.log("Cancel action");
-                    waiting_for_confirmation = false;
-                }
-
-                data.action = `Trigger on right controller was activated: ${XR_BUTTONS.TRIGGER}`;
-                data.controller_vector = controller_vector;
-                data.waiting_for_confirmation = waiting_for_confirmation;
-
-            } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_1)) {
-                console.log("BUTTON_1 (A) on right controller was activated:", XR_BUTTONS.BUTTON_1, gamepad);
-                if (!!waiting_for_confirmation) {
-                    console.log("Confirm action");
-                    waiting_for_confirmation = false;
-
-                    console.log("End session");
-
-                    data.action = "End session confirmed";
-                    data.waiting_for_confirmation = waiting_for_confirmation;
-                    currentSession.end();
-                }
-
-            } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_2)) {
-                console.log("BUTTON_2 (B) on right controller was activated:", XR_BUTTONS.BUTTON_2, gamepad);
-
-                if (!!waiting_for_confirmation) {
-                    console.log("Cancel action");
-                    waiting_for_confirmation = false;
-                    data.action = "End session cancelled";
-                } else {
-                    console.log("Waiting for confirmation...")
-                    waiting_for_confirmation = true;
-                    data.action = "End session initiated";
-                }
-
-                data.waiting_for_confirmation = waiting_for_confirmation;
-
-            } else {
-                for (const b in XR_BUTTONS) {
-                    if (XR_BUTTONS.hasOwnProperty(b)) {
-                        // console.log("Check button: ", XR_BUTTONS[b]);
-                        if (gamepad.getButtonClick(XR_BUTTONS[b])) {
-                            console.log("Button on right controller was activated:", XR_BUTTONS[b], gamepad);
-
-                            if (!!waiting_for_confirmation) {
-                                console.log("Cancel action");
-                                waiting_for_confirmation = false;
-                            }
-
-                            data.waiting_for_confirmation = waiting_for_confirmation;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (controllers.hasOwnProperty("left") && controllers.left !== null) {
-
-            const { gamepad, raySpace } = controllers.left;
-
-            if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
-                console.log("Trigger on left controller was activated:", XR_BUTTONS.TRIGGER, gamepad);
-
-                const controller_vector = new THREE.Group();
-
-                raySpace.getWorldPosition(controller_vector.position);
-                raySpace.getWorldQuaternion(controller_vector.quaternion);
-
-                if (!!waiting_for_confirmation) {
-                    console.log("Cancel action");
-                    waiting_for_confirmation = false;
-                }
-
-                data.action = `Trigger on left controller was activated: ${XR_BUTTONS.TRIGGER}`;
-                data.controller_vector = controller_vector;
-                data.waiting_for_confirmation = waiting_for_confirmation;
-
-            } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_1)) {
-                console.log("BUTTON_1 (X) on left controller was activated:", XR_BUTTONS.BUTTON_1, gamepad);
-
-                if (!!waiting_for_confirmation) {
-                    console.log("Cancel action");
-                    waiting_for_confirmation = false;
-                }
-
-                data.waiting_for_confirmation = waiting_for_confirmation;
-
-            } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_2)) {
-                console.log("BUTTON_2 (Y) on left controller was activated:", XR_BUTTONS.BUTTON_2, gamepad);
-
-                if (!!waiting_for_confirmation) {
-                    console.log("Cancel action");
-                    waiting_for_confirmation = false;
-                }
-
-                data.waiting_for_confirmation = waiting_for_confirmation;
-
-            } else {
-                for (const b in XR_BUTTONS) {
-                    if (XR_BUTTONS.hasOwnProperty(b)) {
-                        // console.log("Check button: ", XR_BUTTONS[b]);
-                        if (gamepad.getButtonClick(XR_BUTTONS[b])) {
-                            console.log("Button on left controller was activated:", XR_BUTTONS[b], gamepad);
-
-                            if (!!waiting_for_confirmation) {
-                                console.log("Cancel action");
-                                waiting_for_confirmation = false;
-                            }
-
-                            data.waiting_for_confirmation = waiting_for_confirmation;
-                        }
-                    }
-                }
-            }
-        }
-        
-        const scene_objects = updateScene(currentSession, delta, time, data, null);
-
-        // renderer.render(scene, camera);
-        renderPortal(scene_objects);
-        renderWorld(scene_objects);
-    });
-
     function startXR() {
         const sessionInit = {
             optionalFeatures: [
@@ -542,7 +277,7 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
                 // "webgpu"
             ]
         };
-        
+
         navigator.xr
             .requestSession("immersive-ar", sessionInit)
             .then(onSessionStarted);
@@ -622,15 +357,113 @@ async function initScene (setup = (scene, camera, controllers, players, mapLayer
         player.position.z = camera.position.z;
         player.position.y = camera.position.y;
 
-        updateScene(currentSession, delta, time);
+        // updateScene(currentSession, delta, time);
 
         renderer.render(scene, camera);
 
-        container.style = `display: inline-block; color: #FFF; font-size: 24px; text-align: center; background-color: #000; height: 100vh; min-width: ${previewWindow.width / 2}px; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
+        container.style = `display: block; color: #FFF; font-size: 24px; text-align: center; background-color: #000; height: 100vh; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
         container.innerHTML = "Reload page";
     });
 
-    container.appendChild(xr_button);
+    container.append(loadManager.div);
+
+    currentSession = null;
+
+    const updateScene = await setup(scene, camera, controllers, player);
+
+    await loadManager.addLoadHandler(async () => {
+
+        // setTimeout(async () => {
+
+            renderer.setAnimationLoop(() => {
+                const delta = clock.getDelta();
+                const time = clock.getElapsedTime();
+                Object.values(controllers).forEach((controller) => {
+                    if (controller?.gamepad) {
+                        controller.gamepad.update();
+                    }
+                });
+
+                const sceneDataUpdate = {};
+
+                if (controllers.hasOwnProperty("right") && controllers.right !== null) {
+
+                    const {gamepad, raySpace} = controllers.right;
+
+                    if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
+                        console.log("Trigger on right controller was activated:", XR_BUTTONS.TRIGGER, gamepad);
+
+                        sceneDataUpdate.action = `Trigger on right controller was activated: ${XR_BUTTONS.TRIGGER}`;
+                        sceneDataUpdate.waiting_for_confirmation = waiting_for_confirmation;
+
+                    } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_1)) {
+                        console.log("BUTTON_1 (A) on right controller was activated:", XR_BUTTONS.BUTTON_1, gamepad);
+                        if (!!waiting_for_confirmation) {
+                            console.log("Confirm action");
+                            waiting_for_confirmation = false;
+                            console.log("End session");
+                            sceneDataUpdate.action = "End session confirmed";
+                            sceneDataUpdate.waiting_for_confirmation = waiting_for_confirmation;
+                            currentSession.end();
+                        }
+
+                    } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_2)) {
+                        console.log("BUTTON_2 (B) on right controller was activated:", XR_BUTTONS.BUTTON_2, gamepad);
+
+                        if (!!waiting_for_confirmation) {
+                            console.log("Cancel action");
+                            waiting_for_confirmation = false;
+                            sceneDataUpdate.action = "End session cancelled";
+                            sceneDataUpdate.waiting_for_confirmation = waiting_for_confirmation;
+
+                        } else {
+                            console.log("Waiting for confirmation...")
+                            waiting_for_confirmation = true;
+                            sceneDataUpdate.action = "End session initiated";
+                            sceneDataUpdate.waiting_for_confirmation = waiting_for_confirmation;
+                        }
+
+                    } else {
+                        for (const b in XR_BUTTONS) {
+                            if (XR_BUTTONS.hasOwnProperty(b)) {
+                                // console.log("Check button: ", XR_BUTTONS[b]);
+                                if (gamepad.getButtonClick(XR_BUTTONS[b])) {
+                                    console.log("Button on right controller was activated:", XR_BUTTONS[b], gamepad);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                stats.begin();
+
+                const clippingPlanes  = getPortalClippingPlanes(renderer, camera);
+
+                if (currentSession !== null) renderer.clippingPlanes =  [
+                    ...clippingPlanes
+                ];
+
+                updateScene(
+                    currentSession,
+                    delta,
+                    time,
+                    (Object.keys(sceneDataUpdate).length > 0) ? sceneDataUpdate : null,
+                    null,
+                    [
+                        ...clippingPlanes
+                    ]
+                );
+
+                renderer.render(scene, camera);
+
+                stats.end();
+                statsMesh.material.map.update();
+            });
+
+            container.appendChild(xr_button);
+
+        // }, 5333);
+    });
 
 }
 

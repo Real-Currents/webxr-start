@@ -10,7 +10,7 @@ const rotatingCube = new THREE.Mesh(cubeGeometry, meshMaterial);
 meshMaterialsPromise
     .then((materials) => {
         console.log(materials);
-        // rotatingCube.material = materials;
+        rotatingCube.material = materials;
     });
 
 

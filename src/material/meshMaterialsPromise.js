@@ -5,11 +5,6 @@ const textureLoader = new THREE.TextureLoader(loadManager);
 
 function loadColorTexture (path) {
     const texture = textureLoader.load( path );
-    const textureRepeatScale = 10;
-    texture.repeat.set(textureRepeatScale, textureRepeatScale);
-    // texture.repeat.x = textureRepeatScale;
-    // texture.repeat.y = textureRepeatScale;
-    texture.wrapS = texture.wrapT = THREE.RepeatWrapping
     texture.colorSpace = THREE.SRGBColorSpace;
     return { // new MeshStandardNodeMaterial({
         // color: 0x00FF00,
