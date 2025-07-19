@@ -38,8 +38,8 @@ function getPortalClippingPlanes (renderer, camera) {
 
     const viewingPlaneLeft = -1; // x left
     const viewingPlaneRight = 1; // x right
-    const viewingPlaneTop = 2.5; // y top
-    const viewingPlaneBottom = 1; // y bottom
+    const viewingPlaneTop = 2.02; // y top
+    const viewingPlaneBottom = 0.5; // y bottom
     const viewingPlaneDepth = 0; // z
     const viewingPlaneHorizonalCenter = 0;
     const viewingPlaneVerticalCenter= (viewingPlaneBottom + viewingPlaneTop) / 2; // (viewingPlaneTop - viewingPlaneBottom)/ 2 + viewingPlaneBottom
