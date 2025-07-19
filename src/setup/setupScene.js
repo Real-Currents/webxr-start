@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import plane from "../objects/plane";
 import rotatingCube from "../objects/rotatingCube";
 
@@ -20,21 +21,19 @@ export default async function setupScene (scene, camera, controllers, player) {
         raySpace.getWorldQuaternion(plane.quaternion);
     }
 
-    return function (currentSession, delta, time, sceneDataUpdate, sendDOMDataUpdate) {
+    return function updateScene (currentSession, delta, time, sceneDataIn, sceneDataOut) {
+
+        const data_out = {};
 
         rotatingCube.rotX(0.01);
         rotatingCube.rotY(0.01);
 
-        if (typeof sceneDataUpdate === "object" && sceneDataUpdate != null) {
-            console.log("sceneDataUpdate:", sceneDataUpdate);
+        if (typeof sceneDataIn === "object" && sceneDataIn != null) {
+            console.log("sceneDataIn:", sceneDataIn);
         }
 
-        if (typeof sendDOMDataUpdate === "function") {
-            const domDataUpdate = {
-                data: "data"
-            };
-
-            sendDOMDataUpdate(domDataUpdate);
+        if (typeof sceneDataOut === "function") {
+            sceneDataOut(data_out);
         }
     }
 }

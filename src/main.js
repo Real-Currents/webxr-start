@@ -7,8 +7,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment';
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory";
 
-import { HTMLMesh } from 'three/addons/interactive/HTMLMesh.js';
-import Stats from "https://unpkg.com/three@0.118.3/examples/jsm/libs/stats.module.js";
+import { HTMLMesh } from "three/addons/interactive/HTMLMesh";
+import Stats from "three/addons/libs/stats.module";
 
 import loadManager from "./loadManager";
 import setupScene from "./setup/setupScene";
@@ -17,7 +17,7 @@ let currentSession;
 
 let waiting_for_confirmation = false;
 
-async function initScene (setup = (scene, camera, controllers, players) => {}) {
+async function initRenderer (setup = (scene, camera, controllers, players) => {}) {
 
     const clock = new THREE.Clock();
     const scene = new THREE.Scene();
@@ -72,6 +72,8 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
     console.log(container);
 
+    container.append(loadManager.div);
+
     // Setup Stats
     const stats = new Stats();
     stats.showPanel(0);
@@ -81,9 +83,9 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     document.body.appendChild(stats.dom);
 
     const statsMesh = new HTMLMesh( stats.dom );
-    statsMesh.position.x = -1.5;
+    statsMesh.position.x = -1;
     statsMesh.position.y = 2;
-    statsMesh.position.z = -0.5;
+    statsMesh.position.z = -2;
     statsMesh.rotation.y = Math.PI / 4;
     statsMesh.scale.setScalar(8);
 
@@ -142,10 +144,10 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
             gripSpace.visible = true;
             const handedness = e.data.handedness;
             controllers[handedness] = {
+                gamepad: new GamepadWrapper(e.data.gamepad),
                 raySpace,
                 gripSpace,
                 mesh,
-                gamepad: new GamepadWrapper(e.data.gamepad),
             };
         });
 
@@ -161,193 +163,298 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         // gripSpace.visible = false;
     }
 
-    function startXR() {
+    const updateScene = await setup(scene, camera, controllers, player);
+
+    renderer.setAnimationLoop(() => {
+
+        const data = {};
+        const delta = clock.getDelta();
+        const time = clock.getElapsedTime();
+
+        stats.begin();
+
+        Object.values(controllers).forEach((controller) => {
+            if (controller?.gamepad) {
+                controller.gamepad.update();
+            }
+        });
+
+        if (controllers.hasOwnProperty("right") && controllers.right !== null) {
+
+            const { gamepad, raySpace } = controllers.right;
+
+            if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
+                console.log("Trigger on right controller was activated:", XR_BUTTONS.TRIGGER, gamepad);
+
+                const controller_vector = new THREE.Group();
+
+                raySpace.getWorldPosition(controller_vector.position);
+                raySpace.getWorldQuaternion(controller_vector.quaternion);
+
+                if (!!waiting_for_confirmation) {
+                    console.log("Cancel action");
+                    waiting_for_confirmation = false;
+                }
+
+                data.action = `Trigger on right controller was activated: ${XR_BUTTONS.TRIGGER}`;
+                data.controller_vector = controller_vector;
+                data.waiting_for_confirmation = waiting_for_confirmation;
+
+            } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_1)) {
+                console.log("BUTTON_1 (A) on right controller was activated:", XR_BUTTONS.BUTTON_1, gamepad);
+                if (!!waiting_for_confirmation) {
+                    console.log("Confirm action");
+                    waiting_for_confirmation = false;
+
+                    console.log("End session");
+
+                    data.action = "End session confirmed";
+                    data.waiting_for_confirmation = waiting_for_confirmation;
+                    currentSession.end();
+                }
+
+            } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_2)) {
+                console.log("BUTTON_2 (B) on right controller was activated:", XR_BUTTONS.BUTTON_2, gamepad);
+
+                if (!!waiting_for_confirmation) {
+                    console.log("Cancel action");
+                    waiting_for_confirmation = false;
+                    data.action = "End session cancelled";
+                } else {
+                    console.log("Waiting for confirmation...")
+                    waiting_for_confirmation = true;
+                    data.action = "End session initiated";
+                }
+
+                data.waiting_for_confirmation = waiting_for_confirmation;
+
+            } else {
+                for (const b in XR_BUTTONS) {
+                    if (XR_BUTTONS.hasOwnProperty(b)) {
+                        // console.log("Check button: ", XR_BUTTONS[b]);
+                        if (gamepad.getButtonClick(XR_BUTTONS[b])) {
+                            console.log("Button on right controller was activated:", XR_BUTTONS[b], gamepad);
+
+                            if (!!waiting_for_confirmation) {
+                                console.log("Cancel action");
+                                waiting_for_confirmation = false;
+                            }
+
+                            data.waiting_for_confirmation = waiting_for_confirmation;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (controllers.hasOwnProperty("left") && controllers.left !== null) {
+
+            const { gamepad, raySpace } = controllers.left;
+
+            if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
+                console.log("Trigger on left controller was activated:", XR_BUTTONS.TRIGGER, gamepad);
+
+                const controller_vector = new THREE.Group();
+
+                raySpace.getWorldPosition(controller_vector.position);
+                raySpace.getWorldQuaternion(controller_vector.quaternion);
+
+                if (!!waiting_for_confirmation) {
+                    console.log("Cancel action");
+                    waiting_for_confirmation = false;
+                }
+
+                data.action = `Trigger on left controller was activated: ${XR_BUTTONS.TRIGGER}`;
+                data.controller_vector = controller_vector;
+                data.waiting_for_confirmation = waiting_for_confirmation;
+
+            } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_1)) {
+                console.log("BUTTON_1 (X) on left controller was activated:", XR_BUTTONS.BUTTON_1, gamepad);
+
+                if (!!waiting_for_confirmation) {
+                    console.log("Cancel action");
+                    waiting_for_confirmation = false;
+                }
+
+                data.waiting_for_confirmation = waiting_for_confirmation;
+
+            } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_2)) {
+                console.log("BUTTON_2 (Y) on left controller was activated:", XR_BUTTONS.BUTTON_2, gamepad);
+
+                if (!!waiting_for_confirmation) {
+                    console.log("Cancel action");
+                    waiting_for_confirmation = false;
+                }
+
+                data.waiting_for_confirmation = waiting_for_confirmation;
+
+            } else {
+                for (const b in XR_BUTTONS) {
+                    if (XR_BUTTONS.hasOwnProperty(b)) {
+                        // console.log("Check button: ", XR_BUTTONS[b]);
+                        if (gamepad.getButtonClick(XR_BUTTONS[b])) {
+                            console.log("Button on left controller was activated:", XR_BUTTONS[b], gamepad);
+
+                            if (!!waiting_for_confirmation) {
+                                console.log("Cancel action");
+                                waiting_for_confirmation = false;
+                            }
+
+                            data.waiting_for_confirmation = waiting_for_confirmation;
+                        }
+                    }
+                }
+            }
+        }
+
+        updateScene(currentSession, delta, time, (data.hasOwnProperty("action")) ? data : null);
+
+        renderer.render(scene, camera);
+
+        stats.end();
+
+        statsMesh.material.map.update();
+    });
+
+
+
+    await loadManager.addLoadHandler(async () => {
+
+        // setTimeout(async () => {
+
+        async function getXRSession (xr) {
+
+            console.log("xr", `${JSON.stringify(xr)}`);
+
+            let session = null;
+
+            try {
+                session = await (xr.requestSession("immersive-ar", sessionInit));
+            } catch (e) {
+                session = await (xr.requestSession("immersive-vr", sessionInit));
+            } finally {
+                return session;
+            }
+        }
+
+        async function onSessionStarted(session) {
+            session.addEventListener("end", onSessionEnded);
+            await renderer.xr.setSession(session);
+            currentSession = session;
+        }
+
+        function onSessionEnded() {
+            currentSession.removeEventListener("end", onSessionEnded);
+            currentSession = null;
+        }
+
         const sessionInit = {
             optionalFeatures: [
                 "local-floor",
                 "bounded-floor",
-                "hand-tracking",
+                // "hand-tracking",
                 "layers"
             ],
             requiredFeatures: [
                 // "webgpu"
             ]
         };
+        const xr_button =
+            // VRButton.createButton(sessionInit);
+            // XRButton.createButton(sessionInit);
+            document.createElement("button");
+        xr_button.className = "xr-button";
+        xr_button.innerHTML = "Enter XR";
+        xr_button.addEventListener('click', async () => {
 
-        navigator.xr
-            .requestSession("immersive-ar", sessionInit)
-            .then(onSessionStarted);
+            console.log("XR Button clicked");
 
-        const vrDisplays = [];
+            const delta = clock.getDelta();
+            const time = clock.getElapsedTime();
 
-        if (navigator.getVRDisplays) {
-            function updateDisplay() {
-                // Call `navigator.getVRDisplays` (before Firefox 59).
-                navigator.getVRDisplays().then(displays => {
-                    constole.log("Checking VR display");
-                    if (!displays.length) {
-                        throw new Error('No VR display found');
-                    } else {
-                        for (const display of displays) {
-                            console.log("Found VR Display:", display);
-                            vrDisplays.push(display);
-                            container.innerHTML += `<br />
-<span style="color: greenyellow">VR Display Connected!</span> <br />
-<span style="color: greenyellow">Reload page to reset XR scene.</span>
-`;
-                        }
-                    }
-                });
+            // Does xr object exist?
+            let nativeWebXRSupport = "xr" in navigator;
+
+            try {
+
+                if (nativeWebXRSupport) nativeWebXRSupport = (
+                    // Does xr object support sessions?
+                    await navigator.xr.isSessionSupported( 'immersive-ar' ) ||
+                    await navigator.xr.isSessionSupported('immersive-vr') ||
+                    nativeWebXRSupport
+                )
+
+            } catch (e) {
+                console.log(e.message, navigator);
             }
 
-            // As of Firefox 59, it's preferred to also wait for the `vrdisplayconnect` event to fire.
-            window.addEventListener('vrdisplayconnect', updateDisplay);
-            window.addEventListener('vrdisplaydisconnect', e => console.log.bind(console));
-            window.addEventListener('vrdisplayactivate', e => console.log.bind(console));
-            window.addEventListener('vrdisplaydeactivate', e => console.log.bind(console));
-            window.addEventListener('vrdisplayblur', e => console.log.bind(console));
-            window.addEventListener('vrdisplayfocus', e => console.log.bind(console));
-            window.addEventListener('vrdisplaypointerrestricted', e => console.log.bind(console));
-            window.addEventListener('vrdisplaypointerunrestricted', e => console.log.bind(console));
-            window.addEventListener('vrdisplaypresentchange', e => console.log.bind(console))
-        }
-    }
+            // If no XR/VR available, setup Immersive Web Emulation Runtime (iwer) and emulated XR device (@iwer/devui)
+            if (!nativeWebXRSupport) {
+                const xrDevice = new XRDevice(metaQuest3);
+                xrDevice.installRuntime();
+                xrDevice.fovy = (75 / 180) * Math.PI;
+                xrDevice.ipd = 0;
+                window.xrdevice = xrDevice;
+                xrDevice.controllers.right.position.set(0.15649, 1.43474, -0.38368);
+                xrDevice.controllers.right.quaternion.set(
+                    0.14766305685043335,
+                    0.02471366710960865,
+                    -0.0037767395842820406,
+                    0.9887216687202454,
+                );
+                xrDevice.controllers.left.position.set(-0.15649, 1.43474, -0.38368);
+                xrDevice.controllers.left.quaternion.set(
+                    0.14766305685043335,
+                    0.02471366710960865,
+                    -0.0037767395842820406,
+                    0.9887216687202454,
+                );
+                new DevUI(xrDevice);
 
-    async function onSessionStarted(session) {
-        session.addEventListener("end", onSessionEnded);
-        await renderer.xr.setSession(session);
-        currentSession = session;
-    }
+            }
 
-    function onSessionEnded() {
-        currentSession.removeEventListener("end", onSessionEnded);
-        currentSession = null;
-    }
+            const session = await getXRSession(navigator.xr);
 
-    const xr_button = // VRButton.createButton(renderer);
-        document.createElement("button");
-    // xr_button.className = "vr-button";
-    xr_button.className = "xr-button";
-    xr_button.innerHTML = "Enter XR";
-    xr_button.addEventListener('click', async () => {
+            await onSessionStarted(session);
 
-        console.log("XR Button clicked");
+            previewWindow.width = window.innerWidth;
+            previewWindow.height = window.innerHeight;
 
-        const delta = clock.getDelta();
-        const time = clock.getElapsedTime();
+            renderer.setSize(previewWindow.width, previewWindow.height);
 
-        startXR();
+            camera.aspect = previewWindow.width / previewWindow.height;
+            camera.updateProjectionMatrix();
 
-        previewWindow.width = window.innerWidth;
-        previewWindow.height = window.innerHeight;
+            // Set camera position
+            // camera.position.z = 0;
+            camera.position.y = 0;
 
-        renderer.setSize(previewWindow.width, previewWindow.height);
+            player.position.z = camera.position.z;
+            player.position.y = camera.position.y;
 
-        camera.aspect = previewWindow.width / previewWindow.height;
-        camera.updateProjectionMatrix();
+            updateScene(currentSession, delta, time, null, null);
 
-        // Set camera position
-        // camera.position.z = 0;
-        camera.position.y = 0;
+            renderer.render(scene, camera);
 
-        player.position.z = camera.position.z;
-        player.position.y = camera.position.y;
+            container.style = `display: block; color: #FFF; font-size: 24px; text-align: center; background-color: #000; height: 100vh; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
+            xr_button.innerHTML = "Reload";
+            xr_button.onclick = function () {
+                xr_button.disabled = true;
+                window.location.reload();
+            };
+        });
 
-        updateScene(currentSession, delta, time);
-
-        renderer.render(scene, camera);
-
-        container.style = `display: block; color: #FFF; font-size: 24px; text-align: center; background-color: #000; height: 100vh; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
-        container.innerHTML = "Reload page";
-    });
-
-    container.append(loadManager.div);
-
-    const updateScene = await setup(scene, camera, controllers, player);
-
-    await loadManager.addLoadHandler(async () => {
-
-        // setTimeout(async () => {
-
-            renderer.setAnimationLoop(() => {
-                const delta = clock.getDelta();
-                const time = clock.getElapsedTime();
-                Object.values(controllers).forEach((controller) => {
-                    if (controller?.gamepad) {
-                        controller.gamepad.update();
-                    }
-                });
-
-                const sceneDataUpdate = {};
-
-                stats.begin();
-
-                if (controllers.hasOwnProperty("right") && controllers.right !== null) {
-
-                    const {gamepad, raySpace} = controllers.right;
-
-                    if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
-                        console.log("Trigger on right controller was activated:", XR_BUTTONS.TRIGGER, gamepad);
-
-                        sceneDataUpdate.action = `Trigger on right controller was activated: ${XR_BUTTONS.TRIGGER}`;
-                        sceneDataUpdate.waiting_for_confirmation = waiting_for_confirmation;
-
-                    } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_1)) {
-                        console.log("BUTTON_1 (A) on right controller was activated:", XR_BUTTONS.BUTTON_1, gamepad);
-                        if (!!waiting_for_confirmation) {
-                            console.log("Confirm action");
-                            waiting_for_confirmation = false;
-                            console.log("End session");
-                            sceneDataUpdate.action = "End session confirmed";
-                            sceneDataUpdate.waiting_for_confirmation = waiting_for_confirmation;
-                            currentSession.end();
-                        }
-
-                    } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_2)) {
-                        console.log("BUTTON_2 (B) on right controller was activated:", XR_BUTTONS.BUTTON_2, gamepad);
-
-                        if (!!waiting_for_confirmation) {
-                            console.log("Cancel action");
-                            waiting_for_confirmation = false;
-                            sceneDataUpdate.action = "End session cancelled";
-                            sceneDataUpdate.waiting_for_confirmation = waiting_for_confirmation;
-
-                        } else {
-                            console.log("Waiting for confirmation...")
-                            waiting_for_confirmation = true;
-                            sceneDataUpdate.action = "End session initiated";
-                            sceneDataUpdate.waiting_for_confirmation = waiting_for_confirmation;
-                        }
-
-                    } else {
-                        for (const b in XR_BUTTONS) {
-                            if (XR_BUTTONS.hasOwnProperty(b)) {
-                                // console.log("Check button: ", XR_BUTTONS[b]);
-                                if (gamepad.getButtonClick(XR_BUTTONS[b])) {
-                                    console.log("Button on right controller was activated:", XR_BUTTONS[b], gamepad);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                updateScene(currentSession, delta, time, (Object.keys(sceneDataUpdate).length > 0) ? sceneDataUpdate : null);
-
-                renderer.render(scene, camera);
-
-                stats.end();
-                statsMesh.material.map.update();
-            });
-
-            container.appendChild(xr_button);
+        container.appendChild(xr_button);
 
         // }, 5333);
     });
 
+    return renderer;
+
 }
 
-initScene(setupScene)
-    .then(() => {
-        console.log("WebXR has been initialized");
+initRenderer(setupScene)
+    .then((renderer) => {
+        console.log("WebXR has been initialized with renderer: ", renderer);
     });
 
