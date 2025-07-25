@@ -30,12 +30,12 @@ export default async function setupScene (renderer, scene, camera, controllers, 
     }
 
     // Load the glove model
-    gltfLoader.load('assets/glove_01.glb', (gltf) => {
+    gltfLoader.load('assets/glove_01_dark.glb', (gltf) => {
         gloveGroup_01.add(gltf.scene);
     });
 
     // Load the glove model
-    gltfLoader.load('assets/glove_02.glb', (gltf) => {
+    gltfLoader.load('assets/glove_02_dark.glb', (gltf) => {
         gloveGroup_02.add(gltf.scene);
     });
 
