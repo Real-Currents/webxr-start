@@ -16,7 +16,7 @@ let currentSession = null;
 let initXRLayers = true;
 let waiting_for_confirmation = false;
 
-async function initRenderer (setup = (scene, camera, controllers, players) => {}) {
+async function initRenderer (setupScene = (scene, camera, controllers, players) => {}) {
 
     const clock = new THREE.Clock();
     const scene = new THREE.Scene();
@@ -127,7 +127,7 @@ async function initRenderer (setup = (scene, camera, controllers, players) => {}
         // gripSpace.visible = false;
     }
 
-    const updateScene = await setup(scene, camera, controllers, player);
+    const updateScene = await setupScene(scene, camera, controllers, player);
 
     renderer.setAnimationLoop(() => {
 
