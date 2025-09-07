@@ -5,8 +5,6 @@ import { DevUI } from '@iwer/devui';
 import { GamepadWrapper, XR_BUTTONS } from 'gamepad-wrapper';
 import { OrbitControls } from 'three/addons/controls/OrbitControls';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment';
-// import { VRButton } from "three/examples/jsm/webxr/VRButton";
-// import { XRButton } from "three/examples/jsm/webxr/XRButton";
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory";
 
 import { HTMLMesh } from "three/addons/interactive/HTMLMesh";
@@ -14,8 +12,8 @@ import Stats from "three/addons/libs/stats.module";
 
 import setupScene from "./setup/setupScene";
 
-let currentSession;
-
+let currentSession = null;
+let initXRLayers = true;
 let waiting_for_confirmation = false;
 
 async function initRenderer (setup = (scene, camera, controllers, players) => {}) {
@@ -81,10 +79,11 @@ async function initRenderer (setup = (scene, camera, controllers, players) => {}
     controls.update();
 
     function onWindowResize() {
-        camera.aspect = previewWindow.width / previewWindow.height;
+
+        camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
 
-        renderer.setSize(previewWindow.width, previewWindow.height);
+        renderer.setSize( window.innerWidth, window.innerHeight );
     }
 
     window.addEventListener('resize', onWindowResize);
@@ -296,13 +295,13 @@ async function initRenderer (setup = (scene, camera, controllers, players) => {}
         }
     }
 
-    async function onSessionStarted(session) {
+    async function onSessionStarted (session, config) {
         session.addEventListener("end", onSessionEnded);
         await renderer.xr.setSession(session);
         currentSession = session;
     }
 
-    function onSessionEnded() {
+    function onSessionEnded () {
         currentSession.removeEventListener("end", onSessionEnded);
         currentSession = null;
     }
@@ -318,12 +317,11 @@ async function initRenderer (setup = (scene, camera, controllers, players) => {}
             // "webgpu"
         ]
     };
-    const xr_button =
-        // VRButton.createButton(sessionInit);
-        // XRButton.createButton(sessionInit);
-        document.createElement("button");
+
+    const xr_button = document.createElement("button");
     xr_button.className = "xr-button";
-    xr_button.innerHTML = "Enter XR";
+    xr_button.disabled = true;
+    xr_button.innerHTML = "Preparing...";
     xr_button.addEventListener('click', async () => {
 
         console.log("XR Button clicked");
@@ -372,30 +370,29 @@ async function initRenderer (setup = (scene, camera, controllers, players) => {}
 
         }
 
+        const useXRLayers =  initXRLayers && (typeof XRWebGLBinding !== 'undefined' && 'createProjectionLayer' in XRWebGLBinding.prototype);
+
         const session = await getXRSession(navigator.xr);
 
-        await onSessionStarted(session);
-
-        previewWindow.width = window.innerWidth;
-        previewWindow.height = window.innerHeight;
-
-        renderer.setSize(previewWindow.width, previewWindow.height);
-
-        camera.aspect = previewWindow.width / previewWindow.height;
-        camera.updateProjectionMatrix();
+        // await onSessionStarted(session, { useXRLayers, videoLayerManager });
+        await onSessionStarted(session, { useXRLayers });
 
         // Set camera position
         // camera.position.z = 0;
         camera.position.y = 0;
 
         player.position.z = camera.position.z;
-        player.position.y = camera.position.y;
+        // player.position.y = camera.position.y;
 
-        updateScene(currentSession, delta, time, null, null);
+        const initSceneDataIn = {
+            "events": [
+                {
+                    "action": "play_sounds"
+                }
+            ]
+        }
 
-        renderer.render(scene, camera);
-
-        container.style = `display: block; color: #FFF; font-size: 24px; text-align: center; background-color: #000; height: 100vh; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
+        // container.style = `display: block; color: #FFF; font-size: 24px; text-align: center; background-color: #000; height: 100vh; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
         xr_button.innerHTML = "Reload";
         xr_button.onclick = function () {
             xr_button.disabled = true;
@@ -404,6 +401,11 @@ async function initRenderer (setup = (scene, camera, controllers, players) => {}
     });
 
     document.body.appendChild(xr_button);
+
+    xr_button.innerHTML = "Enter XR";
+    xr_button.style.opacity = 0.75;
+    xr_button.disabled = false;
+    delete xr_button.disabled;
 
     return renderer;
 
