@@ -63,6 +63,9 @@ async function initRenderer (setup = (scene, camera, controllers, players) => {}
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(previewWindow.width, previewWindow.height);
     renderer.xr.enabled = true;
+
+    console.log(renderer.domElement);
+
     container.appendChild(renderer.domElement);
 
     const camera = new THREE.PerspectiveCamera(
@@ -76,10 +79,6 @@ async function initRenderer (setup = (scene, camera, controllers, players) => {}
     const controls = new OrbitControls(camera, container);
     controls.target.set(0, 1.6, 0);
     controls.update();
-
-    console.log(renderer.domElement);
-
-    container.appendChild(renderer.domElement);
 
     function onWindowResize() {
         camera.aspect = previewWindow.width / previewWindow.height;
@@ -404,7 +403,7 @@ async function initRenderer (setup = (scene, camera, controllers, players) => {}
         };
     });
 
-    container.appendChild(xr_button);
+    document.body.appendChild(xr_button);
 
     return renderer;
 
