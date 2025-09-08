@@ -1,3 +1,5 @@
+import plane from "../objects/plane";
+import rotatingCube from "../objects/rotatingCube";
 
 export default async function setupScene (
     scene,
@@ -9,6 +11,11 @@ export default async function setupScene (
 
     // Set player view
     player.add(camera);
+
+    // Place objects
+    plane.translateY(-1);
+    scene.add(plane);
+    scene.add(rotatingCube);
 
     return function updateScene (currentSession, delta, time, sceneDataIn, sceneDataOut) {
 

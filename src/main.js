@@ -14,6 +14,7 @@ import setupScene from "./setup/setupScene";
 import setupVideoLayerManager from "./setup/setupVideoLayerManager";
 
 import plane from "./objects/plane";
+import rotatingCube from "./objects/rotatingCube";
 
 let currentSession = null;
 let initXRLayers = false;
@@ -142,11 +143,6 @@ async function initRenderer (setupScene = (scene, camera, controllers, players) 
     sceneGroup.translateY(sceneY);
     sceneGroup.translateZ(sceneZ);
 
-    // Place objects
-    plane.translateY(sceneY - 1);
-    scene.add(plane);
-    // sceneGroup.add(rotatingCube);
-
     const video = document.getElementById( 'video' );
     // document.body.appendChild(video);
     // video.loop = true;
@@ -159,8 +155,6 @@ async function initRenderer (setupScene = (scene, camera, controllers, players) 
     // container.addEventListener( 'click', function () {
     //     video.play();
     // });
-
-
 
     const videoLayerManager = setupVideoLayerManager(video, 2064, 2208, 0.090579710, 0.0, 1.0);
 
