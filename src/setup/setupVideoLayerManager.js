@@ -1,6 +1,20 @@
 import * as THREE from "three";
 
-export default function setupVideoLayerManager (video) {
+// These definition make it possible to try different version THREE in the package deps
+const PlaneGeometry = ("PlaneBufferGeometry" in THREE) ?
+    THREE.PlaneBufferGeometry : THREE.PlaneGeometry;
+
+const SphereGeometry = ("SphereBufferGeometry" in THREE) ?
+    THREE.SphereBufferGeometry : THREE.SphereGeometry;
+
+export default function setupVideoLayerManager (
+    video,
+    videoWidth = 2064,
+    videoHeight = 2208,
+    videoReducer = 0.090579710,
+    videoCenterX = 0.0,
+    videoCenterY = 0.0
+) {
 
     let webGLVideo = new THREE.Group();
     let webXRLayerVideo = null;
@@ -30,7 +44,7 @@ export default function setupVideoLayerManager (video) {
             const geometry1 = new PlaneGeometry(5, videoHeight / videoWidth * 5, 60, 40);
             // invert the geometry on the x-axis so that all of the faces point inward
             // geometry1.scale( - 1, 1, 1 );
-            geometry1.translate(videoReducer, 0, -5)
+            geometry1.translate(videoReducer + videoCenterX, videoCenterY, -5);
 
             const uvs1 = geometry1.attributes.uv.array;
 

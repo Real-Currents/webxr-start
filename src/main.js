@@ -11,9 +11,12 @@ import { HTMLMesh } from "three/addons/interactive/HTMLMesh";
 import Stats from "three/addons/libs/stats.module";
 
 import setupScene from "./setup/setupScene";
+import setupVideoLayerManager from "./setup/setupVideoLayerManager";
+
+import plane from "./objects/plane";
 
 let currentSession = null;
-let initXRLayers = true;
+let initXRLayers = false;
 let waiting_for_confirmation = false;
 
 async function initRenderer (setupScene = (scene, camera, controllers, players) => {}) {
@@ -127,15 +130,54 @@ async function initRenderer (setupScene = (scene, camera, controllers, players) 
         // gripSpace.visible = false;
     }
 
-    const updateScene = await setupScene(scene, camera, controllers, player);
+    const sceneGroup = new THREE.Group();
 
-    renderer.setAnimationLoop(() => {
+    let sceneX = 0.0;
+    let sceneY = 0.0;
+    let sceneZ = -5.0;
+
+    scene.add(sceneGroup);
+
+    sceneGroup.translateX(sceneX);
+    sceneGroup.translateY(sceneY);
+    sceneGroup.translateZ(sceneZ);
+
+    // Place objects
+    plane.translateY(sceneY - 1);
+    scene.add(plane);
+    // sceneGroup.add(rotatingCube);
+
+    const video = document.getElementById( 'video' );
+    // document.body.appendChild(video);
+    // video.loop = true;
+    // video.src = 'assets/videos/Lake_Champlain.webm';
+    // video.src = 'assets/videos/Lake_Champlain.mp4';
+    // video.width = previewWindow.width;
+    // video.height = previewWindow.height;
+    // video.play();
+
+    // container.addEventListener( 'click', function () {
+    //     video.play();
+    // });
+
+
+
+    const videoLayerManager = setupVideoLayerManager(video, 2064, 2208, 0.090579710, 0.0, 1.0);
+
+    videoLayerManager.initVideoLayer(false, renderer, sceneGroup, currentSession);
+
+    const updateScene = await setupScene(sceneGroup, camera, controllers, player, videoLayerManager);
+
+    renderer.setAnimationLoop(function render (t, frame ) {
 
         const data = {};
         const delta = clock.getDelta();
         const time = clock.getElapsedTime();
 
-        stats.begin();
+        const xr = renderer.xr;
+        const gl = renderer.getContext();
+
+        // Controllers
 
         Object.values(controllers).forEach((controller) => {
             if (controller?.gamepad) {
@@ -270,8 +312,79 @@ async function initRenderer (setupScene = (scene, camera, controllers, players) 
                 }
             }
         }
+
+        stats.begin();
+
+        let guiLayer,
+            equirectLayer,
+            quadLayerPlain,
+            quadLayerMips,
+            quadLayerVideo;
+
+        if (
+            currentSession !== null
+            && currentSession.renderState.layers !== undefined
+            && currentSession.hasMediaLayer === undefined
+            && initXRLayers && (
+                typeof XRWebGLBinding !== 'undefined'
+                && 'createProjectionLayer' in XRWebGLBinding.prototype
+            )
+        ) {
+
+            console.log("Set media layer to true on currentSession:", currentSession);
+
+            currentSession.hasMediaLayer = true;
+
+            console.log("Make gl context XR compatible: ", gl.makeXRCompatible);
+
+            gl.makeXRCompatible().then(() => {
+
+                const glBinding = xr.getBinding(); // returns XRWebGLBinding
+
+                currentSession.requestReferenceSpace('local-floor').then((refSpace) => {
+
+                    // Create GUI layer.
+                    guiLayer = glBinding.createQuadLayer({
+                        width: statsMesh.geometry.parameters.width,
+                        height: statsMesh.geometry.parameters.height,
+                        viewPixelWidth: statsMesh.material.map.image.width,
+                        viewPixelHeight: statsMesh.material.map.image.height,
+                        space: refSpace,
+                        transform: new XRRigidTransform(statsMesh.position, statsMesh.quaternion)
+                    });
+
+                    quadLayerVideo = videoLayerManager.initVideoLayer(true, renderer, scene, currentSession, refSpace);
+
+                    currentSession.updateRenderState({
+                        layers: (!!currentSession.renderState.layers.length > 0) ? [
+                            quadLayerVideo,
+                            // equirectLayerVideo,
+                            guiLayer,
+                            currentSession.renderState.layers[0]
+                        ] : [
+                            quadLayerVideo,
+                            // equirectLayerVideo,
+                            guiLayer
+                        ]
+                    });
+
+                });
+            });
+
+        }
+
+        if (currentSession !== null && !!guiLayer && (guiLayer.needsRedraw || guiLayer.needsUpdate)) {
+
+            const glayer = xr.getBinding().getSubImage(guiLayer, frame);
+            renderer.state.bindTexture(gl.TEXTURE_2D, glayer.colorTexture);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+            const canvas = statsMesh.material.map.image;
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+            guiLayer.needsUpdate = false;
+
+        }
         
-        updateScene(currentSession, delta, time, (data.hasOwnProperty("action")) ? data : null);
+        // updateScene(currentSession, delta, time, (data.hasOwnProperty("action")) ? data : null);
 
         renderer.render(scene, camera);
 
@@ -373,6 +486,41 @@ async function initRenderer (setupScene = (scene, camera, controllers, players) 
         const useXRLayers =  initXRLayers && (typeof XRWebGLBinding !== 'undefined' && 'createProjectionLayer' in XRWebGLBinding.prototype);
 
         const session = await getXRSession(navigator.xr);
+
+        const vrDisplays = [];
+
+        if (navigator.getVRDisplays) {
+            function updateDisplay() {
+                // Call `navigator.getVRDisplays` (before Firefox 59).
+                navigator.getVRDisplays().then(displays => {
+                    console.log("Checking VR display");
+                    if (!displays.length) {
+                        throw new Error('No VR display found');
+                    } else {
+                        for (const display of displays) {
+                            console.log("Found VR Display:", display);
+                            vrDisplays.push(display);
+                            stats.dom.innerHTML += `<br />
+<span style="color: greenyellow">VR Display Connected!</span> <br />
+<span style="color: greenyellow">Reload page to reset XR scene.</span>
+`;
+                            stats.dom.style.maxHeight = "100vh";
+                        }
+                    }
+                });
+            }
+
+            // As of Firefox 59, it's preferred to also wait for the `vrdisplayconnect` event to fire.
+            window.addEventListener('vrdisplayconnect', updateDisplay);
+            window.addEventListener('vrdisplaydisconnect', e => console.log.bind(console));
+            window.addEventListener('vrdisplayactivate', e => console.log.bind(console));
+            window.addEventListener('vrdisplaydeactivate', e => console.log.bind(console));
+            window.addEventListener('vrdisplayblur', e => console.log.bind(console));
+            window.addEventListener('vrdisplayfocus', e => console.log.bind(console));
+            window.addEventListener('vrdisplaypointerrestricted', e => console.log.bind(console));
+            window.addEventListener('vrdisplaypointerunrestricted', e => console.log.bind(console));
+            window.addEventListener('vrdisplaypresentchange', e => console.log.bind(console))
+        }
 
         // await onSessionStarted(session, { useXRLayers, videoLayerManager });
         await onSessionStarted(session, { useXRLayers });
