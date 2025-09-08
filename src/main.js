@@ -115,7 +115,7 @@ function getPortalClippingPlanes (renderer, camera) {
     ];
 }
 
-async function initScene (setup = (scene, camera, controllers, players) => {}) {
+async function initRenderer (setup = (scene, camera, controllers, players) => {}) {
 
     const clock = new THREE.Clock();
     const scene = new THREE.Scene();
@@ -195,11 +195,22 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     renderer.xr.enabled = true;
     renderer.localClippingEnabled = true;
 
+    console.log(renderer.domElement);
+
+    container.appendChild(renderer.domElement);
+
     const renderTarget = renderer.getRenderTarget();
 
     console.log(renderTarget);
 
-    container.appendChild(renderer.domElement);
+    function onWindowResize() {
+        camera.aspect = previewWindow.width / previewWindow.height;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(previewWindow.width, previewWindow.height);
+    }
+
+    window.addEventListener('resize', onWindowResize);
 
     const camera = new THREE.PerspectiveCamera(
         50,
@@ -212,19 +223,6 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     const controls = new OrbitControls(camera, container);
     controls.target.set(0, 1.6, 0);
     controls.update();
-
-    console.log(renderer.domElement);
-
-    container.appendChild(renderer.domElement);
-
-    function onWindowResize() {
-        camera.aspect = previewWindow.width / previewWindow.height;
-        camera.updateProjectionMatrix();
-
-        renderer.setSize(previewWindow.width, previewWindow.height);
-    }
-
-    window.addEventListener('resize', onWindowResize);
 
     const environment = new RoomEnvironment(renderer);
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -460,15 +458,17 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
                 statsMesh.material.map.update();
             });
 
-            container.appendChild(xr_button);
-
         // }, 5333);
     });
 
+    document.body.appendChild(xr_button);
+
+    return renderer;
+
 }
 
-initScene(setupScene)
-    .then(() => {
-        console.log("WebXR has been initialized");
+initRenderer(setupScene)
+    .then((renderer) => {
+        console.log("WebXR has been initialized with renderer: ", renderer);
     });
 
