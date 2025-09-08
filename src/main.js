@@ -286,7 +286,7 @@ async function initRenderer (setup = (scene, camera, controllers, players) => {}
             function updateDisplay() {
                 // Call `navigator.getVRDisplays` (before Firefox 59).
                 navigator.getVRDisplays().then(displays => {
-                    constole.log("Checking VR display");
+                    console.log("Checking VR display");
                     if (!displays.length) {
                         throw new Error('No VR display found');
                     } else {
