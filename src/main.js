@@ -13,14 +13,11 @@ import Stats from "three/addons/libs/stats.module";
 import setupScene from "./setup/setupScene";
 import setupVideoLayerManager from "./setup/setupVideoLayerManager";
 
-import plane from "./objects/plane";
-import rotatingCube from "./objects/rotatingCube";
-
 let currentSession = null;
 let initXRLayers = false;
 let waiting_for_confirmation = false;
 
-async function initRenderer (setupScene = (scene, camera, controllers, players) => {}) {
+async function initRenderer (setupScene = (scene, camera, controllers, player, videoManager) => {}) {
 
     const clock = new THREE.Clock();
     const scene = new THREE.Scene();
@@ -51,7 +48,7 @@ async function initRenderer (setupScene = (scene, camera, controllers, players) 
     document.body.appendChild(stats.dom);
 
     const statsMesh = new HTMLMesh( stats.dom );
-    statsMesh.position.x = -1;
+    statsMesh.position.x = -2;
     statsMesh.position.y = 2;
     statsMesh.position.z = -2;
     statsMesh.rotation.y = Math.PI / 4;
@@ -76,6 +73,7 @@ async function initRenderer (setupScene = (scene, camera, controllers, players) 
         0.1,
         100,
     );
+    camera.layers.enable( 1 ); // render left view when no stereo available
     camera.position.set(0, 1.6, 3);
 
     const controls = new OrbitControls(camera, container);
@@ -97,6 +95,9 @@ async function initRenderer (setupScene = (scene, camera, controllers, players) 
     scene.environment = pmremGenerator.fromScene(environment).texture;
 
     const player = new THREE.Group();
+    // player.position.y = camera.position.y;
+    player.position.z = camera.position.z;
+
     scene.add(player);
 
     for (let i = 0; i < 2; i++) {
@@ -131,18 +132,6 @@ async function initRenderer (setupScene = (scene, camera, controllers, players) 
         // gripSpace.visible = false;
     }
 
-    const sceneGroup = new THREE.Group();
-
-    let sceneX = 0.0;
-    let sceneY = 0.0;
-    let sceneZ = -5.0;
-
-    scene.add(sceneGroup);
-
-    sceneGroup.translateX(sceneX);
-    sceneGroup.translateY(sceneY);
-    sceneGroup.translateZ(sceneZ);
-
     const video = document.getElementById( 'video' );
     // document.body.appendChild(video);
     // video.loop = true;
@@ -152,15 +141,13 @@ async function initRenderer (setupScene = (scene, camera, controllers, players) 
     // video.height = previewWindow.height;
     // video.play();
 
-    // container.addEventListener( 'click', function () {
-    //     video.play();
-    // });
+    const videoLayerManager = setupVideoLayerManager(video, 2064, 2208, 0.090579710, 0.0, -1.0);
 
-    const videoLayerManager = setupVideoLayerManager(video, 2064, 2208, 0.090579710, 0.0, 1.0);
+    videoLayerManager.initVideoLayer(false, renderer, scene, currentSession);
 
-    videoLayerManager.initVideoLayer(false, renderer, sceneGroup, currentSession);
+    console.log("Init video layer: ", videoLayerManager.videoLayerInitialized);
 
-    const updateScene = await setupScene(sceneGroup, camera, controllers, player, videoLayerManager);
+    const updateScene = await setupScene(scene, camera, controllers, player, videoLayerManager);
 
     renderer.setAnimationLoop(function render (t, frame ) {
 
@@ -349,6 +336,8 @@ async function initRenderer (setupScene = (scene, camera, controllers, players) 
 
                     quadLayerVideo = videoLayerManager.initVideoLayer(true, renderer, scene, currentSession, refSpace);
 
+                    console.log("Init video layer: ", videoLayerManager.videoLayerInitialized)
+
                     currentSession.updateRenderState({
                         layers: (!!currentSession.renderState.layers.length > 0) ? [
                             quadLayerVideo,
@@ -378,7 +367,7 @@ async function initRenderer (setupScene = (scene, camera, controllers, players) 
 
         }
         
-        // updateScene(currentSession, delta, time, (data.hasOwnProperty("action")) ? data : null);
+        updateScene(currentSession, delta, time, (data.hasOwnProperty("action")) ? data : null);
 
         renderer.render(scene, camera);
 
@@ -386,6 +375,18 @@ async function initRenderer (setupScene = (scene, camera, controllers, players) 
 
         statsMesh.material.map.update();
     });
+
+    const sessionInit = {
+        optionalFeatures: [
+            "local-floor",
+            "bounded-floor",
+            // "hand-tracking",
+            "layers"
+        ],
+        requiredFeatures: [
+            // "webgpu"
+        ]
+    };
 
     async function getXRSession (xr) {
 
@@ -403,27 +404,48 @@ async function initRenderer (setupScene = (scene, camera, controllers, players) 
     }
 
     async function onSessionStarted (session, config) {
-        session.addEventListener("end", onSessionEnded);
-        await renderer.xr.setSession(session);
+        try {
+            await renderer.xr.setSession(session, config.useXRLayers);
+        } catch (e) {
+            console.log("Error:", e);
+        }
         currentSession = session;
+        currentSession["config"] = config;
+        currentSession.addEventListener("end", onSessionEnded);
+
+        console.log(currentSession);
+
+        if (!!config && !!config.videoLayerManager && !!videoLayerManager.videoLayerInitialized) {
+            if (!!config.useXRLayers) {
+                // Transition to WebXRLayer
+                console.log("Clear video layer");
+                config.videoLayerManager.clearVideoLayer(!config.useXRLayers, renderer, scene, session);
+                // config.videoLayerManager.initVideoLayer(config.useXRLayers, renderer, scene, session);
+            }
+        }
+
+        console.log("Init video layer: ", config.videoLayerManager.videoLayerInitialized);
     }
 
-    function onSessionEnded () {
+    function onSessionEnded (session) {
+
+        const config = currentSession["config"];
+
+        console.log("Ended WebXR session!", session, config);
+
         currentSession.removeEventListener("end", onSessionEnded);
         currentSession = null;
-    }
 
-    const sessionInit = {
-        optionalFeatures: [
-            "local-floor",
-            "bounded-floor",
-            // "hand-tracking",
-            "layers"
-        ],
-        requiredFeatures: [
-            // "webgpu"
-        ]
-    };
+        if (!!config && !!config.videoLayerManager && !!videoLayerManager.videoLayerInitialized) {
+            if (!!config.useXRLayers) {
+                // Transition to WebGLLayer
+                console.log("Clear video layer");
+                config.videoLayerManager.clearVideoLayer(true, renderer, scene, session);
+                console.log("Init video layer");
+                config.videoLayerManager.initVideoLayer(false, renderer, scene, session);
+            }
+        }
+    }
 
     const xr_button = document.createElement("button");
     xr_button.className = "xr-button";
@@ -481,50 +503,16 @@ async function initRenderer (setupScene = (scene, camera, controllers, players) 
 
         const session = await getXRSession(navigator.xr);
 
-        const vrDisplays = [];
+        await onSessionStarted(session, { useXRLayers, videoLayerManager });
 
-        if (navigator.getVRDisplays) {
-            function updateDisplay() {
-                // Call `navigator.getVRDisplays` (before Firefox 59).
-                navigator.getVRDisplays().then(displays => {
-                    console.log("Checking VR display");
-                    if (!displays.length) {
-                        throw new Error('No VR display found');
-                    } else {
-                        for (const display of displays) {
-                            console.log("Found VR Display:", display);
-                            vrDisplays.push(display);
-                            stats.dom.innerHTML += `<br />
-<span style="color: greenyellow">VR Display Connected!</span> <br />
-<span style="color: greenyellow">Reload page to reset XR scene.</span>
-`;
-                            stats.dom.style.maxHeight = "100vh";
-                        }
-                    }
-                });
-            }
-
-            // As of Firefox 59, it's preferred to also wait for the `vrdisplayconnect` event to fire.
-            window.addEventListener('vrdisplayconnect', updateDisplay);
-            window.addEventListener('vrdisplaydisconnect', e => console.log.bind(console));
-            window.addEventListener('vrdisplayactivate', e => console.log.bind(console));
-            window.addEventListener('vrdisplaydeactivate', e => console.log.bind(console));
-            window.addEventListener('vrdisplayblur', e => console.log.bind(console));
-            window.addEventListener('vrdisplayfocus', e => console.log.bind(console));
-            window.addEventListener('vrdisplaypointerrestricted', e => console.log.bind(console));
-            window.addEventListener('vrdisplaypointerunrestricted', e => console.log.bind(console));
-            window.addEventListener('vrdisplaypresentchange', e => console.log.bind(console))
-        }
-
-        // await onSessionStarted(session, { useXRLayers, videoLayerManager });
-        await onSessionStarted(session, { useXRLayers });
+        updateScene(session, delta, time, { "action": "start_video" });
 
         // Set camera position
         // camera.position.z = 0;
         camera.position.y = 0;
 
-        player.position.z = camera.position.z;
         // player.position.y = camera.position.y;
+        player.position.z = camera.position.z;
 
         const initSceneDataIn = {
             "events": [

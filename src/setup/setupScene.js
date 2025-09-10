@@ -35,6 +35,18 @@ export default async function setupScene (
         gloveGroup_02.add(gltf.scene);
     });
 
+    const sceneGroup = new THREE.Group();
+
+    let sceneX = 0.0;
+    let sceneY = 0.0;
+    let sceneZ = -5.0;
+
+    scene.add(sceneGroup);
+
+    sceneGroup.translateX(sceneX);
+    sceneGroup.translateY(sceneY);
+    sceneGroup.translateZ(sceneZ);
+
     return function updateScene (currentSession, delta, time, sceneDataIn, sceneDataOut) {
 
         const data_out = {
@@ -70,8 +82,11 @@ export default async function setupScene (
         if (typeof sceneDataIn === "object" && sceneDataIn != null) {
             console.log("sceneDataIn:", sceneDataIn);
 
-            // TODO:
-            // videoLayerManager.video.play();
+            if (sceneDataIn.hasOwnProperty("action")) {
+                if (sceneDataIn["action"] === "start_video") {
+                    videoLayerManager.video.play();
+                }
+            }
         }
 
         if (typeof sceneDataOut === "function") {
