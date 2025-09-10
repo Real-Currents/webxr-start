@@ -38,29 +38,26 @@ export default async function setupScene (scene, camera, controllers, player) {
         if (controllers.hasOwnProperty("left") && controllers.left !== null) {
 
             const gamepad_01 = controllers.left.gamepad,
-                raySpace_01 = controllers.left.raySpace,
-                mesh_01 = controllers.left.mesh;
+                raySpace_01 = controllers.left.raySpace;
 
-            // Attach the glove to the right controller
+            // Attach the glove to the left controller
             if (!raySpace_01.children.includes(gloveGroup_01)) {
+                // Hide the default controller model
+                controllers.left.mesh.visible = false;
                 raySpace_01.add(gloveGroup_01);
-                mesh_01.visible = false; // Hide the default controller model
             }
         }
 
         if (controllers.hasOwnProperty("right") && controllers.right !== null) {
 
             const gamepad_02 = controllers.right.gamepad,
-                raySpace_02 = controllers.right.raySpace,
-                mesh_02 = controllers.right.mesh;
-
-            // raySpace_02.getWorldPosition(plane.position);
-            // raySpace_02.getWorldQuaternion(plane.quaternion);
+                raySpace_02 = controllers.right.raySpace;
 
             // Attach the glove to the right controller
             if (!raySpace_02.children.includes(gloveGroup_02)) {
+                // Hide the default controller model
+                controllers.right.mesh.visible = false;
                 raySpace_02.add(gloveGroup_02);
-                mesh_02.visible = false; // Hide the default controller model
             }
         }
 
