@@ -1,8 +1,18 @@
 import * as THREE from "three";
 
-export default function setupLoadManager () {
+const loadManager = new THREE.LoadingManager();
 
-    const loadManager = new THREE.LoadingManager();
+// let initialized = false;
+//
+// export default function setupLoadManager () {
+//
+//     if (!initialized) {
+
+// let initialized = false;
+//
+// export default function setupLoadManager () {
+//
+//     if (!initialized) {
 
 // <div id="loading">
 //     <div class="progress"><div class="progressbar"></div></div>
@@ -49,5 +59,11 @@ export default function setupLoadManager () {
         progressBarElem.style.transform = `scaleX(${progress})`;
     };
 
-    return loadManager;
-}
+//     }
+//
+//     initialized = true;
+//
+//     return loadManager;
+// }
+
+export default loadManager;

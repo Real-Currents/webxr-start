@@ -1,5 +1,12 @@
-import plane from "../objects/plane";
-import rotatingCube from "../objects/rotatingCube";
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+
+import loadManager from "../setup/setupLoadManager";
+
+const gltfLoader = new GLTFLoader(loadManager);
+
+const gloveGroup_01 = new THREE.Group();
+const gloveGroup_02 = new THREE.Group();
 
 export default async function setupScene (
     scene,
@@ -12,20 +19,59 @@ export default async function setupScene (
     // Set player view
     player.add(camera);
 
-    // Place objects
-    plane.translateY(-1);
-    scene.add(plane);
-    scene.add(rotatingCube);
+    // Get rayspace from controller object and update position relative to plane (floor)
+    if (controllers.hasOwnProperty("right") && controllers.right !== null) {
+
+        const { gamepad, raySpace } = controllers.right;
+    }
+
+    // Load the glove model
+    gltfLoader.load('assets/glove_01.glb', (gltf) => {
+        gloveGroup_01.add(gltf.scene);
+    });
+
+    // Load the glove model
+    gltfLoader.load('assets/glove_02.glb', (gltf) => {
+        gloveGroup_02.add(gltf.scene);
+    });
 
     return function updateScene (currentSession, delta, time, sceneDataIn, sceneDataOut) {
 
-        const data_out = {};
+        const data_out = {
+            events: []
+        };
+
+        if (controllers.hasOwnProperty("left") && controllers.left !== null) {
+
+            const gamepad_01 = controllers.left.gamepad,
+                raySpace_01 = controllers.left.raySpace;
+
+            // Attach the glove to the left controller
+            if (!raySpace_01.children.includes(gloveGroup_01)) {
+                // Hide the default controller model
+                controllers.left.mesh.visible = false;
+                raySpace_01.add(gloveGroup_01);
+            }
+        }
+
+        if (controllers.hasOwnProperty("right") && controllers.right !== null) {
+
+            const gamepad_02 = controllers.right.gamepad,
+                raySpace_02 = controllers.right.raySpace;
+
+            // Attach the glove to the right controller
+            if (!raySpace_02.children.includes(gloveGroup_02)) {
+                // Hide the default controller model
+                controllers.right.mesh.visible = false;
+                raySpace_02.add(gloveGroup_02);
+            }
+        }
 
         if (typeof sceneDataIn === "object" && sceneDataIn != null) {
             console.log("sceneDataIn:", sceneDataIn);
 
             // TODO:
-            // video.play();
+            // videoLayerManager.video.play();
         }
 
         if (typeof sceneDataOut === "function") {
