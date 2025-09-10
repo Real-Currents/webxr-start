@@ -1,6 +1,4 @@
 import * as THREE from "three";
-import meshMaterial from "../material/meshMaterial";
-import planeGeometry from "../geometry/planeGeometry";
 
 // These definition make it possible to try different versions THREE in the package deps
 const PlaneGeometry = ("PlaneBufferGeometry" in THREE) ?
@@ -61,10 +59,8 @@ export default function setupVideoLayerManager (
             }
 
             const material1 = new THREE.MeshBasicMaterial({map: texture});
-            // const material1 = meshMaterial;
 
             const mesh1 = new THREE.Mesh(geometry1, material1);
-            // const mesh1 = new THREE.Mesh(planeGeometry, material1);
 
             mesh1.layers.set(1); // display in left eye only
             webGLVideo.add(mesh1);
@@ -88,10 +84,8 @@ export default function setupVideoLayerManager (
             }
 
             const material2 = new THREE.MeshBasicMaterial({map: texture});
-            // const material2 = meshMaterial;
 
             const mesh2 = new THREE.Mesh(geometry2, material2);
-            // const mesh2 = new THREE.Mesh(planeGeometry, material2);
 
             mesh2.layers.set(2); // display in right eye only
             webGLVideo.add(mesh2);
