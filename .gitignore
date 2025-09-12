@@ -29,7 +29,8 @@ dist-ssr
 .Rproj.user
 .Rhistory
 
-data/
-_targets/
+CLAUDE.md
+/data
+/_targets
 *.csv
 *.xlsx
