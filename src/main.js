@@ -49,7 +49,7 @@ async function initRenderer (setupScene = (scene, camera, controllers, player, v
 
     const statsMesh = new HTMLMesh( stats.dom );
     statsMesh.position.x = -2;
-    statsMesh.position.y = 2;
+    statsMesh.position.y = 4;
     statsMesh.position.z = -2;
     statsMesh.rotation.y = Math.PI / 4;
     statsMesh.scale.setScalar(8);
@@ -59,6 +59,8 @@ async function initRenderer (setupScene = (scene, camera, controllers, player, v
     const canvas= window.document.createElement('canvas');
 
     const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    // Make renderer available globally for VR systems
+    window.vrRenderer = renderer;
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(previewWindow.width, previewWindow.height);
     renderer.xr.enabled = true;
@@ -143,11 +145,11 @@ async function initRenderer (setupScene = (scene, camera, controllers, player, v
 
     const videoLayerManager = setupVideoLayerManager(video, 2064, 2208, 0.090579710, 0.0, -1.0);
 
-    videoLayerManager.initVideoLayer(false, renderer, scene, currentSession);
+    // videoLayerManager.initVideoLayer(false, renderer, scene, currentSession);
 
     console.log("Init video layer: ", videoLayerManager.videoLayerInitialized);
 
-    const updateScene = await setupScene(scene, camera, controllers, player, videoLayerManager);
+    const updateScene = await setupScene(renderer, scene, camera, controllers, player, videoLayerManager);
 
     renderer.setAnimationLoop(function render (t, frame ) {
 
@@ -302,70 +304,70 @@ async function initRenderer (setupScene = (scene, camera, controllers, player, v
             quadLayerMips,
             quadLayerVideo;
 
-        if (
-            currentSession !== null
-            && currentSession.renderState.layers !== undefined
-            && currentSession.hasMediaLayer === undefined
-            && initXRLayers && (
-                typeof XRWebGLBinding !== 'undefined'
-                && 'createProjectionLayer' in XRWebGLBinding.prototype
-            )
-        ) {
-
-            console.log("Set media layer to true on currentSession:", currentSession);
-
-            currentSession.hasMediaLayer = true;
-
-            console.log("Make gl context XR compatible: ", gl.makeXRCompatible);
-
-            gl.makeXRCompatible().then(() => {
-
-                const glBinding = xr.getBinding(); // returns XRWebGLBinding
-
-                currentSession.requestReferenceSpace('local-floor').then((refSpace) => {
-
-                    // Create GUI layer.
-                    guiLayer = glBinding.createQuadLayer({
-                        width: statsMesh.geometry.parameters.width,
-                        height: statsMesh.geometry.parameters.height,
-                        viewPixelWidth: statsMesh.material.map.image.width,
-                        viewPixelHeight: statsMesh.material.map.image.height,
-                        space: refSpace,
-                        transform: new XRRigidTransform(statsMesh.position, statsMesh.quaternion)
-                    });
-
-                    quadLayerVideo = videoLayerManager.initVideoLayer(true, renderer, scene, currentSession, refSpace);
-
-                    console.log("Init video layer: ", videoLayerManager.videoLayerInitialized)
-
-                    currentSession.updateRenderState({
-                        layers: (!!currentSession.renderState.layers.length > 0) ? [
-                            quadLayerVideo,
-                            // equirectLayerVideo,
-                            guiLayer,
-                            currentSession.renderState.layers[0]
-                        ] : [
-                            quadLayerVideo,
-                            // equirectLayerVideo,
-                            guiLayer
-                        ]
-                    });
-
-                });
-            });
-
-        }
-
-        if (currentSession !== null && !!guiLayer && (guiLayer.needsRedraw || guiLayer.needsUpdate)) {
-
-            const glayer = xr.getBinding().getSubImage(guiLayer, frame);
-            renderer.state.bindTexture(gl.TEXTURE_2D, glayer.colorTexture);
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-            const canvas = statsMesh.material.map.image;
-            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-            guiLayer.needsUpdate = false;
-
-        }
+        // if (
+        //     currentSession !== null
+        //     && currentSession.renderState.layers !== undefined
+        //     && currentSession.hasMediaLayer === undefined
+        //     && initXRLayers && (
+        //         typeof XRWebGLBinding !== 'undefined'
+        //         && 'createProjectionLayer' in XRWebGLBinding.prototype
+        //     )
+        // ) {
+        //
+        //     console.log("Set media layer to true on currentSession:", currentSession);
+        //
+        //     currentSession.hasMediaLayer = true;
+        //
+        //     console.log("Make gl context XR compatible: ", gl.makeXRCompatible);
+        //
+        //     gl.makeXRCompatible().then(() => {
+        //
+        //         const glBinding = xr.getBinding(); // returns XRWebGLBinding
+        //
+        //         currentSession.requestReferenceSpace('local-floor').then((refSpace) => {
+        //
+        //             // Create GUI layer.
+        //             guiLayer = glBinding.createQuadLayer({
+        //                 width: statsMesh.geometry.parameters.width,
+        //                 height: statsMesh.geometry.parameters.height,
+        //                 viewPixelWidth: statsMesh.material.map.image.width,
+        //                 viewPixelHeight: statsMesh.material.map.image.height,
+        //                 space: refSpace,
+        //                 transform: new XRRigidTransform(statsMesh.position, statsMesh.quaternion)
+        //             });
+        //
+        //             quadLayerVideo = videoLayerManager.initVideoLayer(true, renderer, scene, currentSession, refSpace);
+        //
+        //             console.log("Init video layer: ", videoLayerManager.videoLayerInitialized)
+        //
+        //             currentSession.updateRenderState({
+        //                 layers: (!!currentSession.renderState.layers.length > 0) ? [
+        //                     quadLayerVideo,
+        //                     // equirectLayerVideo,
+        //                     guiLayer,
+        //                     currentSession.renderState.layers[0]
+        //                 ] : [
+        //                     quadLayerVideo,
+        //                     // equirectLayerVideo,
+        //                     guiLayer
+        //                 ]
+        //             });
+        //
+        //         });
+        //     });
+        //
+        // }
+        //
+        // if (currentSession !== null && !!guiLayer && (guiLayer.needsRedraw || guiLayer.needsUpdate)) {
+        //
+        //     const glayer = xr.getBinding().getSubImage(guiLayer, frame);
+        //     renderer.state.bindTexture(gl.TEXTURE_2D, glayer.colorTexture);
+        //     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        //     const canvas = statsMesh.material.map.image;
+        //     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+        //     guiLayer.needsUpdate = false;
+        //
+        // }
         
         updateScene(currentSession, delta, time, (data.hasOwnProperty("action")) ? data : null);
 
@@ -442,7 +444,7 @@ async function initRenderer (setupScene = (scene, camera, controllers, player, v
                 console.log("Clear video layer");
                 config.videoLayerManager.clearVideoLayer(true, renderer, scene, session);
                 console.log("Init video layer");
-                config.videoLayerManager.initVideoLayer(false, renderer, scene, session);
+                // config.videoLayerManager.initVideoLayer(false, renderer, scene, session);
             }
         }
     }

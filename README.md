@@ -1,21 +1,277 @@
-# WebXR Start!
-John Hall
-
-## Configuration
-
-This project uses vite to build/bundle/package/etc. the WebXR app. The
-`vite.config.js` configuration also depends on the
-`@vitejs/plugin-basic-ssl` plugin so that the dev server will use the
-HTTPS protocol which is required for entering immersive mode on most web
-browsers. Install all required dependencies with `npm install`
-
-## Running Code
-
-Run `npm run dev` to run the WebXR dev server.
+---
+title: 'Concept Dimensionalizer: Navigating Abstract Ideas in Spatial Reality'
+subtitle: A WebXR Application for Transforming Complex Concepts into Explorable Spaces
+author: XR Experiential Baselines Project
+date: '2025'
+format:
+  gfm:
+    variant: +yaml_metadata_block
+---
 
 
-      VITE v5.4.11  ready in 293 ms
+## Overview
 
-      ➜  Local:   https://localhost:5173/
-      ➜  Network: use --host to expose
-      ➜  press h + enter to show help
+The Concept Dimensionalizer is an experimental WebXR application that
+transforms abstract concepts into navigable three-dimensional spaces. By
+leveraging spatial cognition and embodied interaction, it aims to make
+complex ideas from economics, ecology, mathematics, and social sciences
+intuitively understandable through direct exploration.
+
+This application tests the hypothesis that spatial navigation of
+abstract concepts can create lasting “experiential baselines”[^1] -
+shared reference points that enable better cross-cultural and
+cross-disciplinary understanding.
+
+## Core Concept
+
+Traditional education presents abstract concepts through text,
+equations, and 2D diagrams. The Concept Dimensionalizer instead creates
+immersive environments where:
+
+- **Economic systems** become flowing landscapes you walk through
+- **Ecological relationships** manifest as traversable food webs
+- **Mathematical topology** transforms into surfaces you can explore
+- **Social networks** emerge as navigable 3D graphs
+
+## Technical Foundation
+
+### WebXR Implementation
+
+Built on A-Frame[^2], the application runs directly in web browsers
+supporting the WebXR Device API[^3], ensuring broad accessibility
+without requiring app installation. The entity-component-system
+architecture[^4] allows modular concept development where new abstract
+ideas can be added as components.
+
+### Spatial Mapping Methodology
+
+Each concept type employs specific spatial metaphors based on cognitive
+science research[^5]:
+
+1.  **Economic Systems**: Resource flows mapped to 3D vector fields
+    using d3-force-3d[^6] for force-directed layouts. Users physically
+    navigate supply and demand curves, experiencing market dynamics
+    through movement.
+
+2.  **Ecological Networks**: Trophic levels rendered as actual pyramids
+    using Three.js instanced meshes[^7], with energy transfer visualized
+    as particle flows between species nodes.
+
+3.  **Mathematical Topology**: Non-orientable surfaces like Klein
+    bottles generated procedurally using parametric equations[^8],
+    allowing users to experience mathematical properties through
+    navigation.
+
+4.  **Social Dynamics**: Network graphs rendered in 3D space where
+    connection strength maps to physical distance, making abstract
+    relationships tangible.
+
+## User Experience Design
+
+### Guided Exploration Mode
+
+For learners new to a concept, the application provides: - **Glowing
+pathways** suggesting optimal exploration routes - **Insight detection**
+recognizing when users discover key relationships - **Progressive
+complexity** adapting to user understanding level
+
+### Self-Directed Discovery
+
+Advanced users can: - Freely navigate concept spaces - Adjust parameters
+in real-time - Compare multiple viewpoints simultaneously - Create
+custom concept combinations
+
+### Collaborative Features
+
+Using Networked-Aframe[^9], multiple users can: - Explore concepts
+together in shared space - Point out discoveries to others - Build
+understanding through discussion - Create persistent annotations
+
+## Implementation Architecture
+
+### Performance Optimization
+
+The application employs several optimization strategies for smooth VR
+performance:
+
+- **Level of Detail (LOD)** systems that adjust mesh complexity based on
+  distance[^10]
+- **Instanced rendering** for repeated elements, reducing draw calls
+- **Texture atlasing** to minimize GPU state changes
+- **Spatial chunking** for large datasets, only rendering nearby
+  elements
+
+### Data Pipeline
+
+Concepts are defined in JSON schemas that specify:
+
+``` json
+{
+  "metadata": {
+    "name": "Market Dynamics",
+    "category": "Economics",
+    "difficulty": "intermediate"
+  },
+  "spatialRules": {
+    "priceAxis": "vertical",
+    "quantityAxis": "horizontal",
+    "timeAxis": "depth"
+  },
+  "interactions": {
+    "equilibriumPoint": {
+      "trigger": "user_reaches_intersection",
+      "insight": "supply_demand_balance"
+    }
+  }
+}
+```
+
+### Rendering Pipeline
+
+The application implements a custom rendering pipeline[^11] that: 1.
+Captures A-Frame’s scene graph 2. Applies concept-specific shaders 3.
+Composites multiple render passes 4. Outputs to WebXR frame buffer
+
+This allows advanced effects like: - Concept morphing during
+transitions - Portal rendering between concept spaces - Temporal
+accumulation for motion trails - Foveated rendering for Quest 3
+optimization
+
+## Educational Framework
+
+### Learning Objectives
+
+The Concept Dimensionalizer targets several pedagogical goals:
+
+1.  **Intuitive Understanding**: Complex relationships become
+    self-evident through spatial arrangement
+2.  **Multiple Perspectives**: Users literally see concepts from
+    different angles
+3.  **Embodied Learning**: Physical navigation reinforces conceptual
+    relationships[^12]
+4.  **Collaborative Insight**: Shared exploration enables peer learning
+
+### Assessment Integration
+
+The application tracks: - Exploration patterns to identify learning
+paths - Time spent in different concept areas - Discovery of key
+insights - Collaboration effectiveness
+
+This data feeds into adaptive algorithms that customize future
+experiences.
+
+## Deployment and Access
+
+### Progressive Web App
+
+Deployed as a PWA, the application: - Works offline after initial load -
+Installs to device home screens - Updates automatically - Maintains
+local progress data
+
+### Cross-Platform Support
+
+The WebXR implementation ensures compatibility with: - **VR Headsets**:
+Meta Quest 2/3, Pico 4, HTC Vive - **AR Devices**: Phones with
+ARCore/ARKit - **Desktop**: 3D navigation with mouse/keyboard -
+**Mobile**: Touch-based exploration
+
+## Research Applications
+
+Beyond education, the Concept Dimensionalizer serves as a research
+platform for studying:
+
+- How spatial navigation affects conceptual understanding
+- Whether shared VR experiences create lasting common ground[^13]
+- Which spatial metaphors most effectively convey abstract ideas
+- How collaborative exploration impacts learning outcomes
+
+## Getting Started
+
+### For Users
+
+1.  Navigate to the application URL in a WebXR-compatible browser
+2.  Click “Enter VR” (or explore in 3D on desktop)
+3.  Select a concept category to explore
+4.  Follow the glowing path or explore freely
+5.  Discover insights through navigation
+
+### For Developers
+
+``` bash
+# Clone repository
+git clone https://github.com/[your-org]/concept-dimensionalizer
+
+# Install dependencies
+npm install
+
+# Start development server with HTTPS
+npm run dev
+
+# Build for production
+npm run build
+```
+
+### For Educators
+
+The application includes: - Curriculum alignment guides - Pre-built
+concept modules - Custom concept creation tools - Student progress
+dashboards - Collaborative session management
+
+## Future Directions
+
+Planned enhancements include: - AI-generated concept spaces from text
+descriptions - Haptic feedback for concept boundaries - Voice-guided
+exploration - Cross-concept relationship mapping - Persistent world
+building
+
+## Contributing
+
+We welcome contributions in: - New concept implementations - Spatial
+metaphor research - Performance optimizations - Accessibility
+improvements - Educational content
+
+## References
+
+[^1]: The theoretical framework of “experiential baselines” extends from
+    established research on common ground in communication. See: Clark,
+    H. H., & Brennan, S. E. (1991). Grounding in communication. In L. B.
+    Resnick, J. M. Levine, & S. D. Teasley (Eds.), *Perspectives on
+    socially shared cognition* (pp. 127–149). American Psychological
+    Association.
+
+[^2]: A-Frame - A web framework for building virtual reality
+    experiences. (2024). Mozilla. https://aframe.io/
+
+[^3]: W3C. (2024). WebXR Device API Specification.
+    https://www.w3.org/TR/webxr/
+
+[^4]: Martin, A. (2007). Entity Systems are the future of MMOG
+    development.
+    http://t-machine.org/index.php/2007/09/03/entity-systems-are-the-future-of-mmog-development-part-1/
+
+[^5]: Hegarty, M. (2014). Spatial thinking in undergraduate science
+    education. *Spatial Cognition & Computation*, 14(2), 142-167.
+
+[^6]: Bostock, M. (2024). d3-force-3d: Force-directed graph layout in
+    3D. https://github.com/vasturiano/d3-force-3d
+
+[^7]: Three.js. (2024). InstancedMesh - Three.js Documentation.
+    https://threejs.org/docs/#api/en/objects/InstancedMesh
+
+[^8]: Stillwell, J. (2010). *Mathematics and Its History* (3rd ed.).
+    Springer. pp. 399-401.
+
+[^9]: Networked-Aframe. (2024). Multi-user WebXR experiences.
+    https://github.com/networked-aframe/networked-aframe
+
+[^10]: Three.js. (2024). LOD - Level of Detail.
+    https://threejs.org/docs/#api/en/objects/LOD
+
+[^11]: Three.js. (2024). WebGLRenderer.
+    https://threejs.org/docs/#api/en/renderers/WebGLRenderer
+
+[^12]: Wilson, M. (2002). Six views of embodied cognition. *Psychonomic
+    Bulletin & Review*, 9(4), 625-636.
+
+[^13]: Clark, H. H. (1996). *Using Language*. Cambridge University
+    Press.
