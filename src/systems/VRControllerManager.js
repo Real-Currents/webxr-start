@@ -319,7 +319,19 @@ export class VRControllerManager extends EventEmitter {
                 const intersections = this.raycaster.intersectObjects(this.getIntersectableObjects(), true);
                 
                 // Show ray if pointing at something interactive
-                rayVisual.visible = intersections.length > 0;
+                const hasIntersection = intersections.length > 0;
+                rayVisual.visible = hasIntersection;
+                
+                // Emit hover events for UI feedback
+                if (hasIntersection) {
+                    this.emit('controllerHover', {
+                        hand,
+                        intersection: intersections[0],
+                        controller
+                    });
+                } else {
+                    this.emit('controllerExit', { hand, controller });
+                }
                 
                 // Color code based on interaction type
                 if (intersections.length > 0) {

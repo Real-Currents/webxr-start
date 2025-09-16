@@ -28,7 +28,7 @@ export class ConceptDimensionalizer extends EventEmitter {
         this.textManager.setScene(scene);
         
         // Create navigation menu
-        this.navigationMenu = new NavigationMenu(scene, this.textManager);
+        this.navigationMenu = new NavigationMenu(scene, this.textManager, player);
         
         // Concept spaces registry (all loaded but only one visible at a time)
         this.conceptSpaces = new Map();
@@ -48,7 +48,7 @@ export class ConceptDimensionalizer extends EventEmitter {
         
         this.setupEventHandlers();
 
-        this.updateUIPositions();
+        // this.updateUIPositions();
     }
     
     setupEventHandlers() {
@@ -89,8 +89,8 @@ export class ConceptDimensionalizer extends EventEmitter {
             await this.createAllConceptSpaces();
             
             // Position player at optimal viewing distance
-            this.player.position.set(0, 1.6, 0);
-            this.player.rotation.y = 0;
+            // this.player.position.set(0, 1.6, 0);
+            // this.player.rotation.y = 0;
             
             // Display initial visualization
             const initialSelection = this.navigationMenu.getCurrentSelection();
@@ -324,7 +324,7 @@ export class ConceptDimensionalizer extends EventEmitter {
         // Data source attribution
         const sourceLabel = this.textManager.createDataSourceLabel(
             this.getDataSourceInfo(visualizationKey),
-            new THREE.Vector3(position.x, position.y - 3, position.z + 2)
+            new THREE.Vector3(position.x, position.y - 0.5, position.z + 2)
         );
         sourceLabel.name = 'currentVisualizationSource';
         this.scene.add(sourceLabel);
@@ -332,7 +332,7 @@ export class ConceptDimensionalizer extends EventEmitter {
         // Interactive help text
         const helpText = this.textManager.createFloatingLabel(
             'Point & Click to Explore | Menu Button: Navigation | B Button: Reset View',
-            new THREE.Vector3(position.x, position.y - 3.5, position.z + 2),
+            new THREE.Vector3(position.x, position.y - 1.0, position.z + 2),
             'info',
             { color: 0x88aaff }
         );
@@ -414,7 +414,10 @@ export class ConceptDimensionalizer extends EventEmitter {
         const object = intersection.object;
         
         // Check navigation menu interactions first
-        if (this.navigationMenu.handleInteraction(intersection)) {
+        if (this.navigationMenu.handleControllerHover(intersection)) {
+            // Menu is being hovered
+        }
+        if (action === 'trigger' && this.navigationMenu.handleControllerInteraction(intersection)) {
             return; // Menu handled the interaction
         }
         
@@ -437,7 +440,7 @@ export class ConceptDimensionalizer extends EventEmitter {
     
     handlePlayerMovement(data) {
         // Update UI positioning relative to player if needed
-        this.updateUIPositions();
+        // this.updateUIPositions();
     }
     
     updateUIPositions() {
@@ -447,25 +450,25 @@ export class ConceptDimensionalizer extends EventEmitter {
         forward.applyQuaternion(this.player.quaternion);
         
         const menuPos = playerPos.clone().add(forward);
-        menuPos.y = playerPos.y + 1.4; // Slightly above eye level
+        menuPos.y = playerPos.y + 2.4; // Slightly above eye level
         
         this.navigationMenu.menuGroup.position.copy(menuPos);
         this.navigationMenu.menuGroup.lookAt(playerPos);
-        this.navigationMenu.menuGroup.rotateX(-(Math.PI/2));
+        // this.navigationMenu.menuGroup.rotateX(-(Math.PI/2));
     }
     
     toggleNavigationMenu() {
         this.navigationMenu.toggleVisibility();
         this.state.showingMenu = this.navigationMenu.visible;
-        
+
         console.log(`Navigation menu ${this.state.showingMenu ? 'shown' : 'hidden'}`);
     }
-    
+
     resetToMenuView() {
         // Return to optimal viewing position
         this.player.position.set(0, 1.6, 0);
         this.player.rotation.y = 0;
-        
+
         // Show navigation menu
         this.navigationMenu.setVisible(true);
         this.state.showingMenu = true;
@@ -554,6 +557,8 @@ export class ConceptDimensionalizer extends EventEmitter {
     }
     
     update(deltaTime, totalTime, inputData) {
+        // Update navigation menu position and interactions
+        this.navigationMenu.update(deltaTime);
         // Update VR controller system
         this.vrController.update(deltaTime);
         
