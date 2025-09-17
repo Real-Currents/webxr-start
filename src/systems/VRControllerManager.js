@@ -3,7 +3,7 @@ import EventEmitter from 'eventemitter3';
 import { XR_BUTTONS } from 'gamepad-wrapper';
 
 /**
- * VR Controller Manager for Quest-optimized navigation and interaction
+ * VR Controller Manager with Fixed Ray Visualization and Trigger Mapping
  */
 export class VRControllerManager extends EventEmitter {
     constructor(scene, camera, renderer, controllers, player) {
@@ -22,43 +22,107 @@ export class VRControllerManager extends EventEmitter {
         
         // Interaction settings
         this.raycaster = new THREE.Raycaster();
-        this.raycaster.far = 50; // Increase range for distant objects
+        this.raycaster.far = 50;
+        
+        // Ray visualization settings - simplified for debugging
+        this.rayLength = 10; // Reduced for easier debugging
         
         // Movement state
         this.velocity = new THREE.Vector3();
         this.isMoving = false;
         this.isTurning = false;
         
-        // Visual feedback
-        this.createControllerVisuals();
+        // Ray visuals storage
+        this.rayVisuals = new Map();
+        this.intersectionMarkers = new Map();
         
-        console.log('VR Controller Manager initialized');
+        // Debug ray creation after a short delay to ensure controllers are ready
+        setTimeout(() => {
+            this.createSimpleRayVisuals();
+        }, 1000);
+        
+        console.log('VR Controller Manager initialized with simple ray debugging');
     }
     
-    createControllerVisuals() {
-        // Create ray visualizers for both controllers
-        this.rayVisuals = new Map();
+    createSimpleRayVisuals() {
+        console.log('Creating simple ray visuals...');
+        console.log('Available controllers:', Object.keys(this.controllers));
         
         ['left', 'right'].forEach(hand => {
-            if (this.controllers[hand]) {
-                const rayGeometry = new THREE.BufferGeometry().setFromPoints([
-                    new THREE.Vector3(0, 0, 0),
-                    new THREE.Vector3(0, 0, -5)
-                ]);
-                
-                const rayMaterial = new THREE.LineBasicMaterial({
-                    color: hand === 'right' ? 0x00ff00 : 0xff0000,
-                    transparent: true,
-                    opacity: 0.5
-                });
-                
-                const rayLine = new THREE.Line(rayGeometry, rayMaterial);
-                rayLine.visible = false; // Hidden by default
-                
-                this.controllers[hand].raySpace.add(rayLine);
-                this.rayVisuals.set(hand, rayLine);
+            const controller = this.controllers[hand];
+            console.log(`${hand} controller:`, controller);
+            
+            if (controller && controller.raySpace) {
+                console.log(`Creating ray for ${hand} controller`);
+                this.createDebugRay(hand, controller);
+            } else {
+                console.warn(`${hand} controller or raySpace not available`);
             }
         });
+    }
+    
+    createDebugRay(hand, controller) {
+        try {
+            // Create very simple, highly visible ray
+            const points = [
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(0, 0, -this.rayLength)
+            ];
+            
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            
+            // Bright, opaque materials for high visibility
+            const material = new THREE.LineBasicMaterial({
+                color: hand === 'right' ? 0x00ff00 : 0xff0000,  // Bright green/red
+                transparent: false,  // No transparency issues
+                linewidth: 5,  // Thick lines
+                opacity: 1.0  // Full opacity
+            });
+            
+            const rayLine = new THREE.Line(geometry, material);
+            rayLine.name = `${hand}-controller-ray`;
+            rayLine.visible = true;  // Always visible
+            
+            // Add to controller's raySpace
+            controller.raySpace.add(rayLine);
+            
+            // Store reference
+            this.rayVisuals.set(hand, {
+                line: rayLine,
+                material: material,
+                geometry: geometry
+            });
+            
+            console.log(`✓ Created ${hand} ray, added to raySpace, visible:`, rayLine.visible);
+            
+            // Create intersection marker
+            this.createSimpleIntersectionMarker(hand);
+            
+        } catch (error) {
+            console.error(`Error creating ${hand} ray:`, error);
+        }
+    }
+    
+    createSimpleIntersectionMarker(hand) {
+        try {
+            const markerGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const markerMaterial = new THREE.MeshBasicMaterial({ 
+                color: hand === 'right' ? 0x00ff00 : 0xff0000,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+            marker.name = `${hand}-intersection-marker`;
+            marker.visible = false; // Hidden until intersection
+            
+            this.scene.add(marker);
+            this.intersectionMarkers.set(hand, marker);
+            
+            console.log(`✓ Created ${hand} intersection marker`);
+        } catch (error) {
+            console.error(`Error creating ${hand} intersection marker:`, error);
+        }
     }
     
     update(deltaTime) {
@@ -73,47 +137,40 @@ export class VRControllerManager extends EventEmitter {
     }
     
     handleControllerInput(deltaTime) {
-        // Right controller - Primary interaction and movement
+        // Right controller
         if (this.controllers.right?.gamepad) {
             const rightGamepad = this.controllers.right.gamepad;
             
-            // Thumbstick locomotion using correct API
+            // PRIMARY TRIGGER = MAIN CLICK EVENT
+            if (rightGamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
+                console.log('Right trigger pressed - PRIMARY CLICK');
+                this.handlePrimaryClick('right');
+            }
+            
+            // Handle movement if available
             try {
                 const moveX = rightGamepad.getAxis('THUMBSTICK_RIGHT_X') || 0;
-                const moveZ = -(rightGamepad.getAxis('THUMBSTICK_RIGHT_Y') || 0); // Invert for natural feel
+                const moveZ = -(rightGamepad.getAxis('THUMBSTICK_RIGHT_Y') || 0);
                 
-                // Apply movement if thumbstick moved significantly
                 if (Math.abs(moveX) > 0.1 || Math.abs(moveZ) > 0.1) {
                     this.handleLocomotion(moveX, moveZ, deltaTime);
                 }
             } catch (error) {
-                // Fallback if thumbstick axes not available
-                console.warn('Right thumbstick not available:', error);
-            }
-            
-            // Button interactions using existing API
-            if (rightGamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
-                this.handleTriggerPress('right');
-            }
-            
-            if (rightGamepad.getButtonClick(XR_BUTTONS.SQUEEZE)) {
-                this.handleGripPress('right');
-            }
-            
-            if (rightGamepad.getButtonClick(XR_BUTTONS.BUTTON_1)) {
-                this.handleMenuPress('right');
-            }
-            
-            if (rightGamepad.getButtonClick(XR_BUTTONS.BUTTON_2)) {
-                this.handleBackPress('right');
+                // Thumbstick not available - this is normal
             }
         }
         
-        // Left controller - Secondary interactions and turning
+        // Left controller  
         if (this.controllers.left?.gamepad) {
             const leftGamepad = this.controllers.left.gamepad;
             
-            // Left thumbstick for turning
+            // PRIMARY TRIGGER = MAIN CLICK EVENT
+            if (leftGamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
+                console.log('Left trigger pressed - PRIMARY CLICK');
+                this.handlePrimaryClick('left');
+            }
+            
+            // Handle turning if available
             try {
                 const turnX = leftGamepad.getAxis('THUMBSTICK_LEFT_X') || 0;
                 
@@ -121,98 +178,45 @@ export class VRControllerManager extends EventEmitter {
                     this.handleTurning(turnX, deltaTime);
                 }
             } catch (error) {
-                // Fallback if thumbstick axes not available
-                console.warn('Left thumbstick not available:', error);
-            }
-            
-            // Left trigger - Alternative selection
-            if (leftGamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
-                this.handleTriggerPress('left');
+                // Thumbstick not available - this is normal
             }
         }
     }
     
-    handleLocomotion(moveX, moveZ, deltaTime) {
-        // Get player forward direction
-        const forward = new THREE.Vector3(0, 0, -1);
-        const right = new THREE.Vector3(1, 0, 0);
-        
-        // Apply player rotation to movement vectors
-        forward.applyQuaternion(this.player.quaternion);
-        right.applyQuaternion(this.player.quaternion);
-        
-        // Calculate movement vector
-        const moveVector = new THREE.Vector3();
-        moveVector.addScaledVector(right, moveX);
-        moveVector.addScaledVector(forward, moveZ);
-        moveVector.normalize();
-        
-        // Apply movement with speed
-        const speed = this.moveSpeed * deltaTime;
-        this.player.position.addScaledVector(moveVector, speed);
-        
-        // Emit movement event
-        this.emit('playerMoved', {
-            position: this.player.position.clone(),
-            direction: moveVector
-        });
-        
-        this.isMoving = true;
-    }
-    
-    handleTurning(turnX, deltaTime) {
-        // Smooth turning
-        const turnAmount = turnX * this.turnSpeed * deltaTime;
-        this.player.rotateY(-turnAmount); // Negative for natural direction
-        
-        this.emit('playerTurned', {
-            rotation: this.player.rotation.y,
-            amount: turnAmount
-        });
-        
-        this.isTurning = true;
-    }
-    
-    handleTriggerPress(hand) {
+    handlePrimaryClick(hand) {
         const controller = this.controllers[hand];
         if (!controller) return;
         
-        // Show ray visual temporarily
+        console.log(`Primary click from ${hand} controller`);
+        
+        // Flash the ray for visual feedback
+        this.flashRay(hand);
+        
+        // Perform raycast for interaction
+        this.performRaycast(hand, 'primary_click');
+    }
+    
+    flashRay(hand) {
         const rayVisual = this.rayVisuals.get(hand);
-        if (rayVisual) {
-            rayVisual.visible = true;
-            setTimeout(() => {
-                rayVisual.visible = false;
-            }, 200);
-        }
+        if (!rayVisual) return;
         
-        // Perform raycast
-        this.performRaycast(hand, 'trigger');
-    }
-    
-    handleGripPress(hand) {
-        const controller = this.controllers[hand];
-        if (!controller) return;
+        // Store original color
+        const originalColor = rayVisual.material.color.getHex();
         
-        // Teleport or special action
-        this.performRaycast(hand, 'grip');
+        // Flash white
+        rayVisual.material.color.setHex(0xffffff);
         
-        this.emit('gripPressed', { hand, controller });
-    }
-    
-    handleMenuPress(hand) {
-        this.emit('menuPressed', { hand });
-    }
-    
-    handleBackPress(hand) {
-        this.emit('backPressed', { hand });
+        // Return to original color after flash
+        setTimeout(() => {
+            rayVisual.material.color.setHex(originalColor);
+        }, 200);
     }
     
     performRaycast(hand, action) {
         const controller = this.controllers[hand];
         if (!controller) return;
         
-        // Set up raycaster from controller
+        // Set up raycaster
         const raySpace = controller.raySpace;
         const tempMatrix = new THREE.Matrix4();
         tempMatrix.identity().extractRotation(raySpace.matrixWorld);
@@ -220,15 +224,28 @@ export class VRControllerManager extends EventEmitter {
         this.raycaster.ray.origin.setFromMatrixPosition(raySpace.matrixWorld);
         this.raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
         
-        // Get all interactable objects (this will be populated by ConceptDimensionalizer)
+        // Get intersectable objects
         const intersectableObjects = this.getIntersectableObjects();
-        
-        // Perform intersection test
         const intersections = this.raycaster.intersectObjects(intersectableObjects, true);
         
         if (intersections.length > 0) {
             const intersection = intersections[0];
             
+            console.log(`${hand} controller hit:`, intersection.object.name || 'unnamed object', 'at distance:', intersection.distance);
+            
+            // Show intersection marker
+            const marker = this.intersectionMarkers.get(hand);
+            if (marker) {
+                marker.position.copy(intersection.point);
+                marker.visible = true;
+                
+                // Hide marker after 1 second
+                setTimeout(() => {
+                    marker.visible = false;
+                }, 1000);
+            }
+            
+            // Emit interaction event
             this.emit('controllerInteraction', {
                 hand,
                 action,
@@ -237,12 +254,10 @@ export class VRControllerManager extends EventEmitter {
                 distance: intersection.distance
             });
             
-            console.log(`${hand} controller ${action}:`, intersection.object.name || 'unnamed object');
-            
-            // Visual feedback
-            this.createInteractionFeedback(intersection.point);
         } else {
-            // No intersection - emit empty interaction for UI handling
+            console.log(`${hand} controller - no intersection`);
+            
+            // Emit empty interaction
             this.emit('controllerInteraction', {
                 hand,
                 action,
@@ -252,46 +267,89 @@ export class VRControllerManager extends EventEmitter {
         }
     }
     
-    createInteractionFeedback(point) {
-        // Create temporary visual feedback at interaction point
-        const feedbackGeometry = new THREE.SphereGeometry(0.05, 8, 8);
-        const feedbackMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0x00ff00,
-            transparent: true,
-            opacity: 0.8 
+    updateRayCasting() {
+        // Update ray colors based on intersections
+        ['left', 'right'].forEach(hand => {
+            this.updateRayColor(hand);
+        });
+    }
+    
+    updateRayColor(hand) {
+        const controller = this.controllers[hand];
+        const rayVisual = this.rayVisuals.get(hand);
+        
+        if (!controller || !rayVisual) return;
+        
+        // Set up raycaster
+        const raySpace = controller.raySpace;
+        const tempMatrix = new THREE.Matrix4();
+        tempMatrix.identity().extractRotation(raySpace.matrixWorld);
+        
+        this.raycaster.ray.origin.setFromMatrixPosition(raySpace.matrixWorld);
+        this.raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+        
+        const intersections = this.raycaster.intersectObjects(this.getIntersectableObjects(), true);
+        
+        if (intersections.length > 0) {
+            const distance = intersections[0].distance;
+            
+            // Color based on distance
+            let color;
+            if (distance < 3) {
+                color = 0x00ff00; // Green - close
+            } else if (distance < 8) {
+                color = 0xffff00; // Yellow - medium
+            } else {
+                color = 0xff8800; // Orange - far
+            }
+            
+            rayVisual.material.color.setHex(color);
+        } else {
+            // No intersection - use base color
+            const baseColor = hand === 'right' ? 0x00ff00 : 0xff0000;
+            rayVisual.material.color.setHex(baseColor);
+        }
+    }
+    
+    handleLocomotion(moveX, moveZ, deltaTime) {
+        const forward = new THREE.Vector3(0, 0, -1);
+        const right = new THREE.Vector3(1, 0, 0);
+        
+        forward.applyQuaternion(this.player.quaternion);
+        right.applyQuaternion(this.player.quaternion);
+        
+        const moveVector = new THREE.Vector3();
+        moveVector.addScaledVector(right, moveX);
+        moveVector.addScaledVector(forward, moveZ);
+        moveVector.normalize();
+        
+        const speed = this.moveSpeed * deltaTime;
+        this.player.position.addScaledVector(moveVector, speed);
+        
+        this.emit('playerMoved', {
+            position: this.player.position.clone(),
+            direction: moveVector
         });
         
-        const feedbackSphere = new THREE.Mesh(feedbackGeometry, feedbackMaterial);
-        feedbackSphere.position.copy(point);
+        this.isMoving = true;
+    }
+    
+    handleTurning(turnX, deltaTime) {
+        const turnAmount = turnX * this.turnSpeed * deltaTime;
+        this.player.rotateY(-turnAmount);
         
-        this.scene.add(feedbackSphere);
+        this.emit('playerTurned', {
+            rotation: this.player.rotation.y,
+            amount: turnAmount
+        });
         
-        // Animate and remove
-        const startTime = Date.now();
-        const animate = () => {
-            const elapsed = Date.now() - startTime;
-            const progress = elapsed / 500; // 500ms duration
-            
-            if (progress < 1) {
-                feedbackSphere.scale.setScalar(1 + progress * 2);
-                feedbackSphere.material.opacity = 0.8 * (1 - progress);
-                requestAnimationFrame(animate);
-            } else {
-                this.scene.remove(feedbackSphere);
-                feedbackGeometry.dispose();
-                feedbackMaterial.dispose();
-            }
-        };
-        
-        animate();
+        this.isTurning = true;
     }
     
     updateMovement(deltaTime) {
-        // Apply movement damping
         if (!this.isMoving) {
             this.velocity.multiplyScalar(this.smoothDamping);
             
-            // Stop very small velocities
             if (this.velocity.length() < 0.01) {
                 this.velocity.set(0, 0, 0);
             }
@@ -301,74 +359,36 @@ export class VRControllerManager extends EventEmitter {
         this.isTurning = false;
     }
     
-    updateRayCasting() {
-        // Update ray visual states based on controller pointing
-        ['left', 'right'].forEach(hand => {
-            const rayVisual = this.rayVisuals.get(hand);
-            const controller = this.controllers[hand];
-            
-            if (rayVisual && controller) {
-                // Show ray when pointing at interactable objects
-                const raySpace = controller.raySpace;
-                const tempMatrix = new THREE.Matrix4();
-                tempMatrix.identity().extractRotation(raySpace.matrixWorld);
-                
-                this.raycaster.ray.origin.setFromMatrixPosition(raySpace.matrixWorld);
-                this.raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-                
-                const intersections = this.raycaster.intersectObjects(this.getIntersectableObjects(), true);
-                
-                // Show ray if pointing at something interactive
-                const hasIntersection = intersections.length > 0;
-                rayVisual.visible = hasIntersection;
-                
-                // Emit hover events for UI feedback
-                if (hasIntersection) {
-                    this.emit('controllerHover', {
-                        hand,
-                        intersection: intersections[0],
-                        controller
-                    });
-                } else {
-                    this.emit('controllerExit', { hand, controller });
-                }
-                
-                // Color code based on interaction type
-                if (intersections.length > 0) {
-                    const intersection = intersections[0];
-                    const distance = intersection.distance;
-                    
-                    // Green for close, yellow for medium, red for far
-                    if (distance < 3) {
-                        rayVisual.material.color.setHex(0x00ff00);
-                    } else if (distance < 10) {
-                        rayVisual.material.color.setHex(0xffff00);
-                    } else {
-                        rayVisual.material.color.setHex(0xff6600);
-                    }
-                    
-                    rayVisual.material.opacity = 0.8;
-                } else {
-                    rayVisual.material.opacity = 0.3;
-                }
-            }
-        });
-    }
-    
     getIntersectableObjects() {
-        // This will be populated by ConceptDimensionalizer
         return this._intersectableObjects || [];
     }
     
     setIntersectableObjects(objects) {
         this._intersectableObjects = objects;
+        console.log(`✓ Set ${objects.length} intersectable objects for ray casting`);
     }
     
-    // Teleportation system
+    // Get current intersection for external use
+    getCurrentIntersection(hand) {
+        const controller = this.controllers[hand];
+        if (!controller) return null;
+        
+        const raySpace = controller.raySpace;
+        const tempMatrix = new THREE.Matrix4();
+        tempMatrix.identity().extractRotation(raySpace.matrixWorld);
+        
+        this.raycaster.ray.origin.setFromMatrixPosition(raySpace.matrixWorld);
+        this.raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+        
+        const intersections = this.raycaster.intersectObjects(this.getIntersectableObjects(), true);
+        return intersections.length > 0 ? intersections[0] : null;
+    }
+    
+    // Teleportation
     teleportTo(position) {
         if (position instanceof THREE.Vector3) {
             this.player.position.copy(position);
-            this.player.position.y = Math.max(this.player.position.y, 0); // Keep above ground
+            this.player.position.y = Math.max(this.player.position.y, 0);
             
             this.emit('playerTeleported', {
                 position: this.player.position.clone()
@@ -376,7 +396,7 @@ export class VRControllerManager extends EventEmitter {
         }
     }
     
-    // Get current player state
+    // Player state
     getPlayerState() {
         return {
             position: this.player.position.clone(),
@@ -386,36 +406,33 @@ export class VRControllerManager extends EventEmitter {
         };
     }
     
-    // Comfort settings
+    // Settings
     setComfortSettings(settings) {
         this.moveSpeed = settings.moveSpeed || this.moveSpeed;
         this.turnSpeed = settings.turnSpeed || this.turnSpeed;
         this.smoothDamping = settings.smoothDamping || this.smoothDamping;
-        
-        // Apply snap turning if requested
-        if (settings.snapTurning) {
-            this.setupSnapTurning(settings.snapAngle || 30);
-        }
     }
     
-    setupSnapTurning(snapAngle) {
-        // Convert smooth turning to snap turning for comfort
-        this.snapAngle = (snapAngle * Math.PI) / 180; // Convert to radians
-        this.snapTurning = true;
-        this.lastSnapTime = 0;
-    }
-    
+    // Cleanup
     dispose() {
         // Clean up ray visuals
         this.rayVisuals.forEach((rayVisual, hand) => {
-            if (rayVisual.parent) {
-                rayVisual.parent.remove(rayVisual);
+            if (rayVisual.line.parent) {
+                rayVisual.line.parent.remove(rayVisual.line);
             }
             rayVisual.geometry.dispose();
             rayVisual.material.dispose();
         });
         
+        // Clean up intersection markers
+        this.intersectionMarkers.forEach((marker, hand) => {
+            this.scene.remove(marker);
+            marker.geometry.dispose();
+            marker.material.dispose();
+        });
+        
         this.rayVisuals.clear();
+        this.intersectionMarkers.clear();
         this.removeAllListeners();
         
         console.log('VR Controller Manager disposed');
